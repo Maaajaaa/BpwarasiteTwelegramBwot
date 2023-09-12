@@ -34,6 +34,9 @@ std::vector<std::string> plantNames = {"ivy", "avocado", "not a plant"};
 //critical warnings are sent continuously
 #define CRITICAL_WARNING_LEVEL 15.0
 
+//time that the sensor has to be offline for a warning to appear in minutes, remember that b-parasite only updates every 10 minutes per default
+#define OFFLINE_WARNING_TIME 55
+
 
 //send a thank you if watering is back up above this level after being low
 #define WATERING_THANKYOU_LEVEL 60.0
@@ -75,9 +78,6 @@ void connectToWifi(){
     Serial.println(now);
 
     //update time stamps
-    for(int i = 0; i<NUMBER_OF_PLANTS; i++){
-      lastTimeDataReceived[i] = time(nullptr);
-    }
     lastTimeoutCheck = time(nullptr);
 
     digitalWrite(LED_BUILTIN, HIGH);
@@ -125,6 +125,15 @@ void loop() {
             Serial.printf("%ddBm\n",  parasite.data[i].rssi);
             Serial.println();
             
+            //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
+            if(time(nullptr)-lastTimeDataReceived[i] <= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived != 0){
+              String message = "_woof_  Sensor of ";
+              message += plantNames[i].c_str();
+              message += " is back online _happy woof_, signal strength is: ";
+              message += parasite.data[i].rssi;
+              message += " dBm";
+              bot.sendMessage(CHAT_ID, message, "markdown");
+            }
             //update the last time it received data
             lastTimeDataReceived[i] = time(nullptr);
 
@@ -202,15 +211,15 @@ void loop() {
       lastTimeoutCheck = time(nullptr);
       for(int i=0; i<NUMBER_OF_PLANTS; i++){
         //if more than 55 minutes since last reading
-        if(time(nullptr) - lastTimeDataReceived[i] > 60*55){
+        if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME){
           //make sure internet connection is there
           if(WiFi.status() != WL_CONNECTED){
               connectToWifi();
           }
           String message = "\xF0\x9F\x90\xB6 _BARK_ \xF0\x9F\x90\xB6 sensor of ";
               message += plantNames[i].c_str();
-              message += "'s has not delivered any new data since ";
-              message += time(nullptr) - lastTimeDataReceived[i] / 60;
+              message += " has not delivered any new data since ";
+              message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
               message += " minutes! \xf0\x9f\xa7\x90";
               if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
                 Serial.println("SENDING MESSAGE FAILED");
