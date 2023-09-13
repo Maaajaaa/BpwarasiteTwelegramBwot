@@ -46,6 +46,8 @@ UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 BParasite parasite(knownBLEAddresses);
 
 bool warningNOTDelivered[NUMBER_OF_PLANTS]= {0};
+bool criticalWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
+bool offlineWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
 bool moistureLow[NUMBER_OF_PLANTS] = {0};
 bool moistureCritical[NUMBER_OF_PLANTS]= {0};
 time_t lastTimeDataReceived[NUMBER_OF_PLANTS] = {0};
@@ -66,14 +68,13 @@ void connectToWifi(){
     Serial.print("\nWiFi connected. IP address: ");
     Serial.println(WiFi.localIP());
     Serial.print("Retrieving time: ");
-    configTime(0, 3600, "pool.ntp.org"); // get UTC time via NTP
+    configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
     time_t now = time(nullptr);
     while (now < 24 * 3600)
     {
       Serial.print(".");
       delay(100);
       now = time(nullptr);
-      configTime(0, 3600, "pool.ntp.org"); // get UTC time via NTP
     }
     Serial.println(now);
 
@@ -124,9 +125,14 @@ void loop() {
             Serial.printf("%.2flux\n", parasite.data[i].illuminance/100.0);
             Serial.printf("%ddBm\n",  parasite.data[i].rssi);
             Serial.println();
+
+            //reset offline warning
+            offlineWarningNOTDelivered[i] = true;
             
             //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
-            if(time(nullptr)-lastTimeDataReceived[i] <= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived != 0){
+            if(time(nullptr)-lastTimeDataReceived[i] >= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived[i] != 0){
+              criticalWarningNOTDelivered[i]=false;
+              offlineWarningNOTDelivered[i]=false;
               String message = "_woof_  Sensor of ";
               message += plantNames[i].c_str();
               message += " is back online _happy woof_, signal strength is: ";
@@ -145,21 +151,27 @@ void loop() {
             }
             
             if( parasite.data[i].soil_moisture/100.0 <= CRITICAL_WARNING_LEVEL){
-              warningNOTDelivered[i]=true;
+              warningNOTDelivered[i]=false;
               moistureLow[i]=true;
-              moistureCritical[i]=true;
-              //continously send critcally low messages
-              String message = "\xF0\x9F\x90\xB6 _WOOF_ \xF0\x9F\x90\xB6 moisture of ";
-              message += plantNames[i].c_str();
-              message += "'s soil CRITICALLY low \xF0\x9F\x98\xB1 ";
-              message += parasite.data[i].soil_moisture/100.0;
-              message += "%";
-              if(!bot.sendMessage(CHAT_ID, message, "markdown")){
-                Serial.println("SENDING MESSAGE FAILED");
-              }else{
-                  warningNOTDelivered[i]=false;
-                  Serial.println("critical warning delivered");
+              if(!moistureCritical[i]){
+                criticalWarningNOTDelivered[i]=true;
+                moistureCritical[i]=true;
               }
+              if(criticalWarningNOTDelivered[i]){
+                //send critcally low messages
+                String message = "\xF0\x9F\x90\xB6 _WOOF_ \xF0\x9F\x90\xB6 moisture of ";
+                message += plantNames[i].c_str();
+                message += "'s soil CRITICALLY low \xF0\x9F\x98\xB1 ";
+                message += parasite.data[i].soil_moisture/100.0;
+                message += "%";
+                if(!bot.sendMessage(CHAT_ID, message, "markdown")){
+                  Serial.println("SENDING MESSAGE FAILED");
+                }else{
+                    
+                    Serial.println("critical warning delivered");
+                }
+              }
+              
             }else if( parasite.data[i].soil_moisture/100.0 <= LOW_MOISTURE_LEVEL){
               //LOW MOISTURE
               Serial.println("LOW MOISTURE");
@@ -184,9 +196,11 @@ void loop() {
                 }
               }
             } else if( parasite.data[i].soil_moisture/100.0 >= WATERING_THANKYOU_LEVEL && (moistureLow[i] || moistureCritical[i])){
+              //reset all warnings
               moistureCritical[i] = false;
               moistureLow[i] = false;
               warningNOTDelivered[i]=false;
+              criticalWarningNOTDelivered[i]=false;
               String message = "Thank you for watering ";
               message += plantNames[i].c_str();
               message += ", soil moisture went up to ";
@@ -210,8 +224,8 @@ void loop() {
     if(time(nullptr) - lastTimeoutCheck > 60*25){
       lastTimeoutCheck = time(nullptr);
       for(int i=0; i<NUMBER_OF_PLANTS; i++){
-        //if more than 55 minutes since last reading
-        if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME){
+        //if more than 55 minutes since last reading and no warned yet
+        if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
           //make sure internet connection is there
           if(WiFi.status() != WL_CONNECTED){
               connectToWifi();
@@ -222,10 +236,10 @@ void loop() {
               message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
               message += " minutes! \xf0\x9f\xa7\x90";
               if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-                Serial.println("SENDING MESSAGE FAILED");
+                Serial.println("SENDING offline warning MESSAGE FAILED");
               }else{
-                  warningNOTDelivered[i]=false;
-                  Serial.println("critical warning delivered");
+                  offlineWarningNOTDelivered[i]=false;
+                  Serial.println("offline warning delivered");
               }
         }
       }
@@ -234,7 +248,7 @@ void loop() {
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
     if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && !std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0)){
-      for(auto i=0; i<1700;){
+      for(auto i=0; i<1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(200);                      
           digitalWrite(LED_BUILTIN, HIGH);   
@@ -242,8 +256,9 @@ void loop() {
           i+= 400;                     
       }
     //at least one with low moisture and at least with failed to send warning (which do not have to be the same ones but supposedly should, unless bug)
-    }else if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0)){
-      for(auto i=0; i<=1700;){
+    }else if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && 
+      (std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0) || std::accumulate(criticalWarningNOTDelivered, criticalWarningNOTDelivered+NUMBER_OF_PLANTS, 0))){
+      for(auto i=0; i<=1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(500);                      
           digitalWrite(LED_BUILTIN, HIGH);   
@@ -251,7 +266,7 @@ void loop() {
           i+= 1000;                     
       }
     }else if(std::accumulate(moistureCritical, moistureCritical+NUMBER_OF_PLANTS,0)){
-      for(auto i=0; i<=1800;){
+      for(auto i=0; i<=1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(100);                      
           digitalWrite(LED_BUILTIN, HIGH);   
@@ -260,7 +275,7 @@ void loop() {
       }
     }else{
       //readings okay
-      delay(2000);
+      delay(1400);
     }
 }
 
