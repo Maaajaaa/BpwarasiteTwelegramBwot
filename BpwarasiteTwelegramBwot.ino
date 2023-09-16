@@ -137,6 +137,7 @@ void loop() {
 
 
         //valid means new data and no error in this case
+        //everything will only be processed while the data is fresh here
         if (prstDatCpyAtIndexI.valid) {
             Serial.println();
             Serial.printf("Sensor of %d: %s\n", i, plantNames[i].c_str());
@@ -148,9 +149,24 @@ void loop() {
             Serial.printf("%ddBm\n",  prstDatCpyAtIndexI.rssi);
             Serial.println();
 
-            
-            bot.sendMessage("***REMOVED***", "Hellow I've received new data", "markdown");
+            String message = "_woof_  new data from ";
+            message += plantNames[i].c_str();
+            message += " ";            
+            message += prstDatCpyAtIndexI.soil_moisture/100.0;
+            message += " % soil moisture at ";
+            message += prstDatCpyAtIndexI.rssi;
+            message += " dBm ";
+            message += prstDatCpyAtIndexI.temperature/100.0;
+            message += "C at ";
+            message += prstDatCpyAtIndexI.humidity/100.0;
+            message += " %";
 
+            
+            bot.sendMessage("***REMOVED***", message, "markdown");
+        }
+
+        //invalid data won't be proccessed unless a message needs to be resent
+        if (prstDatCpyAtIndexI.valid || warningNOTDelivered[i] || criticalWarningNOTDelivered[i]){
             //reset offline warning
             offlineWarningNOTDelivered[i] = true;
             
@@ -237,7 +253,16 @@ void loop() {
                 Serial.println("thank you for watering delivered");
               }
             }
-            
+
+            //set data as invalid to signify that it has been processed
+            if(mutex != NULL){
+              if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
+                parasiteData[i].valid = false;
+                xSemaphoreGive(mutex);
+              }
+            } else{
+              Serial.println("Mutex null");
+            }
          }
     }
     //Serial.println("BLE Devices found (total): " + String(found));
@@ -312,12 +337,16 @@ void parasiteReadingTask(void *pvParameters) {
     for (int i=0; i < NUMBER_OF_PLANTS; i++){
       if(mutex != NULL){
         if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
-          parasiteData[i] = parasite.data[i];
+          //only update data (including the validity) if temperature, soil moisture or humidity have changed
+          if(parasiteData[i].temperature != parasite.data[i].temperature || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture || parasiteData[i].humidity != parasite.data[i].humidity)
+            parasiteData[i] = parasite.data[i];
+          else
+            parasiteData[i].valid = false;
           xSemaphoreGive(mutex);
-        } else parasiteData[i].valid = false;
-        } else{
-           Serial.println("Mutex null");
         }
+      } else{
+           Serial.println("Mutex null");
+        } 
     } 
     parasite.clearScanResults(); // clear results from BLEScan buffer to release memory
     vTaskDelay(1000 / portTICK_PERIOD_MS);
