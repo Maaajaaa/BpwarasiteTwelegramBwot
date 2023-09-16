@@ -25,6 +25,7 @@ std::vector<std::string> plantNames = {"ivy"};
 // Telegram BOT Token (Get from Botfather)
 #define BOT_TOKEN "***REMOVED***"
 #define CHAT_ID "***REMOVED***"
+#define CHAT_ID_USER "***REMOVED***"
 
 #define TELEGRAM_DEBUG
 
@@ -295,6 +296,15 @@ void loop() {
       }
     }
 
+    //Handle Bot Updates
+    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    while (numNewMessages)
+    {
+      Serial.println("got response");
+      handleNewMessages(numNewMessages);
+      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    }
+
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
     if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && !std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0)){
@@ -353,3 +363,26 @@ void parasiteReadingTask(void *pvParameters) {
   }
 }
 
+void handleNewMessages(int numNewMessages)
+{
+  for (int i = 0; i < numNewMessages; i++)
+  {
+    if(bot.messages[i].chat_id == CHAT_ID_USER){
+      String message = bot.messages[i].text;
+      for(int j = 0; j < NUMBER_OF_PLANTS; j++){
+        message += "\n\n";
+        message += plantNames[j].c_str();
+        message += "\nsoil moisture: ";
+        message += parasite.data[j].soil_moisture/100.0;
+        message += "%\ntemperature: ";
+        message += parasite.data[j].temperature/100.0;
+        message += "°C\nhumidity (air): ";
+        message += parasite.data[j].humidity/100.0;
+        message += " %rH\n measured: ";
+        message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
+        message += " minutes ago";
+      }
+      bot.sendMessage(CHAT_ID_USER, message, "");
+    }
+  }
+}
