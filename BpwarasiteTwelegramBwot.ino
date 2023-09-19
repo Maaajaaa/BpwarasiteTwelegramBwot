@@ -154,21 +154,6 @@ void loop() {
             Serial.printf("%.2flux\n", prstDatCpyAtIndexI.illuminance/100.0);
             Serial.printf("%ddBm\n",  prstDatCpyAtIndexI.rssi);
             Serial.println();
-
-            String message = "_woof_  new data from ";
-            message += plantNames[i].c_str();
-            message += " ";            
-            message += prstDatCpyAtIndexI.soil_moisture/100.0;
-            message += " % soil moisture at ";
-            message += prstDatCpyAtIndexI.rssi;
-            message += " dBm ";
-            message += prstDatCpyAtIndexI.temperature/100.0;
-            message += "C at ";
-            message += prstDatCpyAtIndexI.humidity/100.0;
-            message += " %";
-
-            
-            bot.sendMessage("***REMOVED***", message, "markdown");
         }
 
         //invalid data won't be proccessed unless a message needs to be resent
