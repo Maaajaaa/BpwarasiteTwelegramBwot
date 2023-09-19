@@ -23,6 +23,8 @@ std::vector<std::string> plantNames = {"avocado", "Maja's ivy"};
 //#define NUMBER_OF_PLANTS 1
 #define NUMBER_OF_PLANTS 2
 
+#define HOSTNAME "Plantbase One"
+
 // Wifi network station credentials
 //#define WIFI_SSID "***REMOVED***"
 //#define WIFI_PASSWORD "***REMOVED***"
@@ -74,6 +76,7 @@ void connectToWifiAndGetDST(){
 
   Serial.print("Connecting to Wifi SSID ");
   Serial.print(WIFI_SSID);
+  WiFi.setHostname(HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   pinMode(LED_BUILTIN, OUTPUT);
   //turn LED on
@@ -405,7 +408,7 @@ void handleNewMessages(int numNewMessages)
         message += "°C\nhumidity (air): ";
         message += parasite.data[j].humidity/100.0;
         message += " %rH\n measured: ";
-        message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
+        message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
         message += " minutes ago";
       }
       bot.sendMessage(CHAT_ID_USER, message, "Markdown");
