@@ -29,10 +29,13 @@ std::vector<std::string> plantNames = {"avocado", "Maja's ivy"};
 #define WIFI_SSID "***REMOVED***"
 #define WIFI_PASSWORD "***REMOVED***"
 // Telegram BOT Token (Get from Botfather)
-#define BOT_TOKEN "***REMOVED***"
-#define CHAT_ID "***REMOVED***"
+//#define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
+#define BOT_TOKEN "***REMOVED***" // Maja Bot
+#define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
 //#define CHAT_ID_USER "***REMOVED***" //***REMOVED***
 #define CHAT_ID_USER "***REMOVED***" //Maja
+
+#define CHAT_ID_USER "***REMOVED***" //Maja @ ***REMOVED*** Bot
 
 #define TELEGRAM_DEBUG
 
@@ -68,7 +71,7 @@ void connectToWifiAndGetDST(){
   //stop and destroy sntp service//stop smooth time adjustment and set local time manually
   timeval epoch = {0, 0}; //Jan 1 1970
   settimeofday((const timeval*)&epoch, 0);
-  
+
   Serial.print("Connecting to Wifi SSID ");
   Serial.print(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -393,9 +396,9 @@ void handleNewMessages(int numNewMessages)
     if(bot.messages[i].chat_id == CHAT_ID_USER){
       String message = bot.messages[i].text;
       for(int j = 0; j < NUMBER_OF_PLANTS; j++){
-        message += "\n\n";
+        message += "\n\n*";
         message += plantNames[j].c_str();
-        message += "\nsoil moisture: ";
+        message += "*\nsoil moisture: ";
         message += parasite.data[j].soil_moisture/100.0;
         message += "%\ntemperature: ";
         message += parasite.data[j].temperature/100.0;
