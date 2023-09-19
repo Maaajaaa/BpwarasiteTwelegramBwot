@@ -15,17 +15,23 @@
 
 const int scanTime = 5; // BLE scan time in seconds
 // List of known sensors' BLE addresses
-std::vector<std::string> knownBLEAddresses = {"cb:1b:5f:bf:07:aa"};
-std::vector<std::string> plantNames = {"ivy"};
-#define NUMBER_OF_PLANTS 1
+std::vector<std::string> knownBLEAddresses = {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17"};
+std::vector<std::string> plantNames = {"avocado", "Maja's ivy"};
+//std::vector<std::string> knownBLEAddresses = {"cb:1b:5f:bf:07:aa"};
+//std::vector<std::string> plantNames = {"***REMOVED***' ivy"};
+//#define NUMBER_OF_PLANTS 1
+#define NUMBER_OF_PLANTS 2
 
 // Wifi network station credentials
+//#define WIFI_SSID "***REMOVED***"
+//#define WIFI_PASSWORD "***REMOVED***"
 #define WIFI_SSID "***REMOVED***"
 #define WIFI_PASSWORD "***REMOVED***"
 // Telegram BOT Token (Get from Botfather)
 #define BOT_TOKEN "***REMOVED***"
 #define CHAT_ID "***REMOVED***"
-#define CHAT_ID_USER "***REMOVED***"
+//#define CHAT_ID_USER "***REMOVED***" //***REMOVED***
+#define CHAT_ID_USER "***REMOVED***" //Maja
 
 #define TELEGRAM_DEBUG
 
@@ -94,8 +100,7 @@ void setup() {
     parasite.begin();
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
-    xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL); // stack size: tried 1000, not sufficient
-  //            task function, name of task, stack size, param, priority, handle
+    xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
     connectToWifi();   
 
     secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
@@ -341,25 +346,37 @@ void loop() {
 
 void parasiteReadingTask(void *pvParameters) {
   while (1) {
+    int delayTime = 1000;
+    bool dataSaved = false;
     parasite.resetData(); // Set sensor data invalid
     parasite.getData(5); // get sensor data (run BLE scan for 5 seconds)
     // makes a copy of each sensor reading under mutex protection
     for (int i=0; i < NUMBER_OF_PLANTS; i++){
       if(mutex != NULL){
-        if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
-          //only update data (including the validity) if temperature, soil moisture or humidity have changed
-          if(parasiteData[i].temperature != parasite.data[i].temperature || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture || parasiteData[i].humidity != parasite.data[i].humidity)
-            parasiteData[i] = parasite.data[i];
-          else
-            parasiteData[i].valid = false;
-          xSemaphoreGive(mutex);
-        }
+        while(!dataSaved && delayTime >= 100){
+          //try to get mutex to write data
+          if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
+            //only update data (including the validity) if temperature, soil moisture or humidity have changed
+            if(parasiteData[i].temperature != parasite.data[i].temperature || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture || parasiteData[i].humidity != parasite.data[i].humidity){
+              parasiteData[i] = parasite.data[i];
+            }
+            else{
+              parasiteData[i].valid = false;
+            }
+            xSemaphoreGive(mutex);
+            dataSaved = true;
+          }else{
+            //if mutex fails try again in 10ms
+            delay(10);
+            delayTime -= 10;
+          }
+        }        
       } else{
            Serial.println("Mutex null");
         } 
     } 
     parasite.clearScanResults(); // clear results from BLEScan buffer to release memory
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(delayTime / portTICK_PERIOD_MS);
   }
 }
 
