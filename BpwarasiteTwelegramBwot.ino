@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
+
 #include <numeric> 
 
 #ifdef CORE_DEBUG_LEVEL
@@ -63,35 +64,45 @@ bool moistureCritical[NUMBER_OF_PLANTS]= {0};
 time_t lastTimeDataReceived[NUMBER_OF_PLANTS] = {0};
 time_t lastTimeoutCheck = 0;
 
-void connectToWifi(){
+void connectToWifiAndGetDST(){
+  //stop and destroy sntp service//stop smooth time adjustment and set local time manually
+  timeval epoch = {0, 0}; //Jan 1 1970
+  settimeofday((const timeval*)&epoch, 0);
+  
   Serial.print("Connecting to Wifi SSID ");
-    Serial.print(WIFI_SSID);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    pinMode(LED_BUILTIN, OUTPUT);
-    //turn LED on
-    digitalWrite(LED_BUILTIN, LOW); 
-    while (WiFi.status() != WL_CONNECTED)
-    {
-      Serial.print(".");
-      delay(500);
-    }
-    Serial.print("\nWiFi connected. IP address: ");
-    Serial.println(WiFi.localIP());
-    Serial.print("Retrieving time: ");
-    configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
-    time_t now = time(nullptr);
-    while (now < 24 * 3600)
-    {
-      Serial.print(".");
-      delay(100);
-      now = time(nullptr);
-    }
-    Serial.println(now);
+  Serial.print(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  pinMode(LED_BUILTIN, OUTPUT);
+  //turn LED on
+  digitalWrite(LED_BUILTIN, LOW); 
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.print("\nWiFi connected. IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Retrieving time: ");
+  configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
+  time_t now = time(nullptr);
+  while (now < 3 * 60)
+  {
+    Serial.print(".");
+    delay(100);
+    now = time(nullptr);
+  }
+  //if DST couldn't be aquired set manual time (which will be off, but maybe at least the year is close enough for a secure connection)
+  if(now < 4 * 60){
+    //stop smooth time adjustment and set local time manually
+    timeval epoch = {1695159464, 0}; //Sep 19 2023
+    settimeofday((const timeval*)&epoch, 0);
+  }
+  Serial.println(now);
 
-    //update time stamps
-    lastTimeoutCheck = time(nullptr);
+  //update time stamps
+  lastTimeoutCheck = time(nullptr);
 
-    digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void setup() {
@@ -101,7 +112,7 @@ void setup() {
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
-    connectToWifi();   
+    connectToWifiAndGetDST();   
 
     secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
     String message = String("Reciever of soil moisture of ");
@@ -179,7 +190,8 @@ void loop() {
             //this is done here because the sensor (as long as there is only one or they are synced) 
             //will send again only in 10 minutes so we do have plenty of time
             if(WiFi.status() != WL_CONNECTED){
-              connectToWifi();
+              WiFi.disconnect();
+              connectToWifiAndGetDST();
             }
             
             if( prstDatCpyAtIndexI.soil_moisture/100.0 <= CRITICAL_WARNING_LEVEL){
@@ -269,7 +281,7 @@ void loop() {
         if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
           //make sure internet connection is there
           if(WiFi.status() != WL_CONNECTED){
-              connectToWifi();
+              connectToWifiAndGetDST();
           }
           String message = "\xF0\x9F\x90\xB6 _BARK_ \xF0\x9F\x90\xB6 sensor of ";
               message += plantNames[i].c_str();
@@ -297,7 +309,15 @@ void loop() {
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
-    if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && !std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0)){
+    bool mstLow  = ( std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) >= 1);
+    bool mstCritLow = (std::accumulate(moistureCritical, moistureCritical+NUMBER_OF_PLANTS,0) >= 1);
+    bool warnNDel = (std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0) >= 1);
+    bool critWarnNDel = (std::accumulate(criticalWarningNOTDelivered, criticalWarningNOTDelivered+NUMBER_OF_PLANTS, 0) >= 1);
+    if(warnNDel || critWarnNDel){
+      WiFi.disconnect();
+      connectToWifiAndGetDST();
+    }
+    if(mstLow && !warnNDel){
       for(auto i=0; i<1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(200);                      
@@ -306,8 +326,7 @@ void loop() {
           i+= 400;                     
       }
     //at least one with low moisture and at least with failed to send warning (which do not have to be the same ones but supposedly should, unless bug)
-    }else if(std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) && 
-      (std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0) || std::accumulate(criticalWarningNOTDelivered, criticalWarningNOTDelivered+NUMBER_OF_PLANTS, 0))){
+    }else if(mstLow && (warnNDel || critWarnNDel)){
       for(auto i=0; i<=1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(500);                      
@@ -315,7 +334,7 @@ void loop() {
           delay(500); 
           i+= 1000;                     
       }
-    }else if(std::accumulate(moistureCritical, moistureCritical+NUMBER_OF_PLANTS,0)){
+    }else if(mstCritLow){
       for(auto i=0; i<=1400;){
           digitalWrite(LED_BUILTIN, LOW);  
           delay(100);                      
@@ -342,7 +361,9 @@ void parasiteReadingTask(void *pvParameters) {
           //try to get mutex to write data
           if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
             //only update data (including the validity) if temperature, soil moisture or humidity have changed
-            if(parasiteData[i].temperature != parasite.data[i].temperature || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture || parasiteData[i].humidity != parasite.data[i].humidity){
+            if(parasiteData[i].temperature != parasite.data[i].temperature 
+                || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
+                || parasiteData[i].humidity != parasite.data[i].humidity){
               parasiteData[i] = parasite.data[i];
             }
             else{
