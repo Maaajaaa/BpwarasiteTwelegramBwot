@@ -408,7 +408,7 @@ void handleNewMessages(int numNewMessages)
         message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
         message += " minutes ago";
       }
-      bot.sendMessage(CHAT_ID_USER, message, "");
+      bot.sendMessage(CHAT_ID_USER, message, "Markdown");
     }
   }
 }
