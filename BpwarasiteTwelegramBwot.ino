@@ -310,7 +310,8 @@ void loop() {
     {
       Serial.println("got response");
       handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+      //this shouldn't be needed as we only handle single messages
+      //numNewMessages = bot.getUpdates(bot.last_message_received + 1);
     }
 
     //LED STUFF
@@ -357,11 +358,11 @@ void loop() {
 void parasiteReadingTask(void *pvParameters) {
   while (1) {
     int delayTime = 1000;
-    bool dataSaved = false;
     parasite.resetData(); // Set sensor data invalid
     parasite.getData(5); // get sensor data (run BLE scan for 5 seconds)
     // makes a copy of each sensor reading under mutex protection
     for (int i=0; i < NUMBER_OF_PLANTS; i++){
+      bool dataSaved = false;
       if(mutex != NULL){
         while(!dataSaved && delayTime >= 100){
           //try to get mutex to write data
@@ -370,11 +371,10 @@ void parasiteReadingTask(void *pvParameters) {
             if(parasiteData[i].temperature != parasite.data[i].temperature 
                 || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
                 || parasiteData[i].humidity != parasite.data[i].humidity){
-              parasiteData[i] = parasite.data[i];
             }
-            else{
-              parasiteData[i].valid = false;
-            }
+            //else{
+            //  parasiteData[i].valid = false;
+            //}
             xSemaphoreGive(mutex);
             dataSaved = true;
           }else{
@@ -407,7 +407,7 @@ void handleNewMessages(int numNewMessages)
         message += parasite.data[j].temperature/100.0;
         message += "°C\nhumidity (air): ";
         message += parasite.data[j].humidity/100.0;
-        message += " %rH\n measured: ";
+        message += " %rH\nmeasured: ";
         message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
         message += " minutes ago";
       }
