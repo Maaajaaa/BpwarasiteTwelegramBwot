@@ -305,13 +305,10 @@ void loop() {
     }
 
     //Handle Bot Updates
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    while (numNewMessages)
+    if(bot.getUpdates(bot.last_message_received + 1))
     {
       Serial.println("got response");
-      handleNewMessages(numNewMessages);
-      //this shouldn't be needed as we only handle single messages
-      //numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+      handleNewMessages(1);
     }
 
     //LED STUFF
