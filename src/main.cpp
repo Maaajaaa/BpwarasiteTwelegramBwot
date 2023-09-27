@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include "BParasite.h"
 #include "esp32-hal-log.h" 
 
@@ -68,6 +70,10 @@ bool moistureLow[NUMBER_OF_PLANTS] = {0};
 bool moistureCritical[NUMBER_OF_PLANTS]= {0};
 time_t lastTimeDataReceived[NUMBER_OF_PLANTS] = {0};
 time_t lastTimeoutCheck = 0;
+
+void handleNewMessages(int);
+void connectToWifiAndGetDST();
+void parasiteReadingTask(void *pvParameters);
 
 void connectToWifiAndGetDST(){
   //stop and destroy sntp service//stop smooth time adjustment and set local time manually
