@@ -412,7 +412,7 @@ void handleNewMessages(int numNewMessages)
         message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
         message += " minutes ago";
       }
-      bot.sendMessage((bot.messages[i].chat_id, message, "Markdown");
+      bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
     }
   }
 }
