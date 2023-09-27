@@ -189,8 +189,11 @@ void loop() {
               message += " dBm";
               bot.sendMessage(CHAT_ID, message, "markdown");
             }
-            //update the last time it received data
-            lastTimeDataReceived[i] = time(nullptr);
+
+            if (prstDatCpyAtIndexI.valid){   
+              //update the last time it received data
+              lastTimeDataReceived[i] = time(nullptr);
+            }
 
             //reconnect if WiFi connection is lost
             //this is done here because the sensor (as long as there is only one or they are synced) 
@@ -368,6 +371,7 @@ void parasiteReadingTask(void *pvParameters) {
             if(parasiteData[i].temperature != parasite.data[i].temperature 
                 || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
                 || parasiteData[i].humidity != parasite.data[i].humidity){
+                  parasiteData[i]=parasite.data[i];
             }
             //else{
             //  parasiteData[i].valid = false;
