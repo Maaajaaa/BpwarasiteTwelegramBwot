@@ -33,10 +33,18 @@ std::vector<std::string> plantNames = {"***REMOVED***' ivy"};
 // Telegram BOT Token (Get from Botfather)
 #define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
 //#define BOT_TOKEN "***REMOVED***" // Maja Bot
+<<<<<<< Updated upstream
 #define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group
 #define CHAT_ID_USER "***REMOVED***" //***REMOVED***
 //#define CHAT_ID_USER "***REMOVED***" //Maja
 
+=======
+#define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
+#define CHAT_ID_USER "***REMOVED***" //***REMOVED***
+//#define CHAT_ID_USER "***REMOVED***" //Maja
+
+#define CHAT_ID_MAJA "***REMOVED***" //Maja @ ***REMOVED*** Bot
+>>>>>>> Stashed changes
 
 #define TELEGRAM_DEBUG
 
@@ -396,7 +404,7 @@ void handleNewMessages(int numNewMessages)
 {
   for (int i = 0; i < numNewMessages; i++)
   {
-    if(bot.messages[i].chat_id == CHAT_ID_USER){
+    if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
       String message = bot.messages[i].text;
       for(int j = 0; j < NUMBER_OF_PLANTS; j++){
         message += "\n\n*";
@@ -411,7 +419,7 @@ void handleNewMessages(int numNewMessages)
         message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
         message += " minutes ago";
       }
-      bot.sendMessage(CHAT_ID_USER, message, "Markdown");
+      bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
     }
   }
 }
