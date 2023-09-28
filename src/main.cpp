@@ -1,10 +1,9 @@
 #include <Arduino.h>
-#include <config.h>
 #include <Messenger/Messenger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
-BParasite parasite(knownBLEAddresses);
+BParasite parasite(knownBLEAddresses, plantNames);
 BParasite_Data_S parasiteData[NUMBER_OF_PLANTS];
 
 SemaphoreHandle_t mutex;
@@ -20,6 +19,7 @@ time_t lastTimeoutCheck = 0;
 void handleNewMessages(int);
 void connectToWifiAndGetDST();
 void parasiteReadingTask(void *pvParameters);
+void blink(int ,int);
 
 Messenger messenger;
 
@@ -30,9 +30,8 @@ void setup() {
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
-    connectToWifiAndGetDST();   
-    
-    messenger.sendOnlineMessage();    
+    connectToWifiAndGetDST();
+    messenger.sendOnlineMessage(parasite.data);    
 }
 
 void loop() {
@@ -61,7 +60,7 @@ void loop() {
         //everything will only be processed while the data is fresh here
         if (prstDatCpyAtIndexI.valid) {
             Serial.println();
-            Serial.printf("Sensor of %d: %s\n", i, plantNames[i].c_str());
+            Serial.printf("Sensor of %d: %s\n", i, prstDatCpyAtIndexI.name.c_str());
             Serial.printf("%.2f°C\n", prstDatCpyAtIndexI.temperature/100.0);
             Serial.printf("%.2f%% humidity\n", prstDatCpyAtIndexI.humidity/100.0);
             Serial.printf("%.3fV\n",  prstDatCpyAtIndexI.batt_voltage/1000.0);
@@ -79,7 +78,7 @@ void loop() {
             //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
             if(time(nullptr)-lastTimeDataReceived[i] >= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived[i] != 0){
               criticalWarningNOTDelivered[i]=false;
-              offlineWarningNOTDelivered[i]=!messenger.sendOfflineWarning(i, prstDatCpyAtIndexI);
+              offlineWarningNOTDelivered[i]=!messenger.sendOfflineWarning(prstDatCpyAtIndexI);
             }
 
             if (prstDatCpyAtIndexI.valid){   
@@ -103,7 +102,7 @@ void loop() {
                 moistureCritical[i]=true;
               }
               if(criticalWarningNOTDelivered[i]){
-                criticalWarningNOTDelivered[i] =! messenger.sendCriticallyLowMessage(i, prstDatCpyAtIndexI);
+                criticalWarningNOTDelivered[i] =! messenger.sendCriticallyLowMessage(prstDatCpyAtIndexI);
               }
               
             }else if( prstDatCpyAtIndexI.soil_moisture/100.0 <= LOW_MOISTURE_LEVEL){
@@ -117,7 +116,7 @@ void loop() {
               }
               //deliver warning if neccessarry and connected
               if(warningNOTDelivered[i] && WiFi.status() == WL_CONNECTED){
-                warningNOTDelivered[i] =! messenger.sendLowMessage(i, prstDatCpyAtIndexI);
+                warningNOTDelivered[i] =! messenger.sendLowMessage(prstDatCpyAtIndexI);
               }
             } else if( prstDatCpyAtIndexI.soil_moisture/100.0 >= WATERING_THANKYOU_LEVEL && (moistureLow[i] || moistureCritical[i])){
               //reset all warnings
@@ -125,7 +124,7 @@ void loop() {
               moistureLow[i] = false;
               warningNOTDelivered[i]=false;
               criticalWarningNOTDelivered[i]=false;
-              messenger.sendThankYouMessage(i, prstDatCpyAtIndexI);
+              messenger.sendThankYouMessage(prstDatCpyAtIndexI);
             }
 
             //set data as invalid to signify that it has been processed
@@ -148,7 +147,7 @@ void loop() {
         if(!messenger.ping()){
             connectToWifiAndGetDST();
         }
-        offlineWarningNOTDelivered[i] != messenger.sendOfflineWarning(i, round(time(nullptr)-lastTimeDataReceived[i])/60);
+        offlineWarningNOTDelivered[i] != messenger.sendOfflineWarning(round(time(nullptr)-lastTimeDataReceived[i])/60, parasite.data[i]);
       }
     }
 

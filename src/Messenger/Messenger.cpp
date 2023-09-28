@@ -4,15 +4,15 @@ Messenger::Messenger(){
     secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 }
 
-void Messenger::sendOnlineMessage(){
+void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     String message = String("Reciever of soil moisture of ");
-    for(int i = 0; i< plantNames.size(); i++){
-      if(i == plantNames.size() -1 && i > 0){
+    for(int i = 0; i< NUMBER_OF_PLANTS; i++){
+      if(i == NUMBER_OF_PLANTS -1 && i > 0){
         message += " and ";
       } else if(i > 0){
         message += ", ";
       }
-      message += plantNames[i].c_str();
+      message += parasiteData[i].name.c_str();
     }
     message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
     //markdownv2 requires escape of . characters, so v1 is used for simplicity
@@ -22,9 +22,9 @@ void Messenger::sendOnlineMessage(){
 }
 
 //returns 1 if message was sent successfully
-bool Messenger::sendOfflineWarning(int index, BParasite_Data_S parasiteData){
+bool Messenger::sendOfflineWarning(BParasite_Data_S parasiteData){
     String message = "_woof_  Sensor of ";
-    message += plantNames[index].c_str();
+    message += parasiteData.name.c_str();
     message += " is back online _happy woof_, signal strength is: ";
     message += parasiteData.rssi;
     message += " dBm";
@@ -33,9 +33,9 @@ bool Messenger::sendOfflineWarning(int index, BParasite_Data_S parasiteData){
     return sent;
 }
 
-bool Messenger::sendCriticallyLowMessage(int index, BParasite_Data_S parasiteData){
+bool Messenger::sendCriticallyLowMessage(BParasite_Data_S parasiteData){
     String message = "\xF0\x9F\x90\xB6 _WOOF_ \xF0\x9F\x90\xB6 moisture of ";
-    message += plantNames[index].c_str();
+    message += parasiteData.name.c_str();
     message += "'s soil CRITICALLY low \xF0\x9F\x98\xB1 ";
     message += parasiteData.soil_moisture/100.0;
     message += "%";
@@ -44,9 +44,9 @@ bool Messenger::sendCriticallyLowMessage(int index, BParasite_Data_S parasiteDat
     return sent;
 }
 
-bool Messenger::sendLowMessage(int index, BParasite_Data_S parasiteData){
+bool Messenger::sendLowMessage(BParasite_Data_S parasiteData){
     String message = "\xF0\x9F\x90\xB6 _woof_ moisture of ";
-    message += plantNames[index].c_str();
+    message += parasiteData.name.c_str();
     message += "'s soil low ";
     message += parasiteData.soil_moisture/100.0;
     message += "% \xF0\x9F\x9A\xB1";
@@ -55,9 +55,9 @@ bool Messenger::sendLowMessage(int index, BParasite_Data_S parasiteData){
     return sent;
 }
 
-bool Messenger::sendThankYouMessage(int index, BParasite_Data_S parasiteData){
+bool Messenger::sendThankYouMessage(BParasite_Data_S parasiteData){
     String message = "Thank you for watering ";
-    message += plantNames[index].c_str();
+    message += parasiteData.name.c_str();
     message += ", soil moisture went up to ";
     message += parasiteData.soil_moisture/100.0;
     message += "% \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 _happy panting_";
@@ -66,9 +66,9 @@ bool Messenger::sendThankYouMessage(int index, BParasite_Data_S parasiteData){
     return sent;
 }
 
-bool Messenger::sendOfflineWarning(int index, int minutesOffline){
+bool Messenger::sendOfflineWarning(int minutesOffline, BParasite_Data_S parasiteData){
     String message = "\xF0\x9F\x90\xB6 _BARK_ \xF0\x9F\x90\xB6 sensor of ";
-    message += plantNames[index].c_str();
+    message += parasiteData.name.c_str();
     message += " has not delivered any new data since ";
     message += minutesOffline;
     message += " minutes! \xf0\x9f\xa7\x90";
@@ -104,7 +104,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
       String message = bot.messages[i].text;
       for(int j = 0; j < NUMBER_OF_PLANTS; j++){
         message += "\n\n*";
-        message += plantNames[j].c_str();
+        message += parasiteData[j].name.c_str();
         message += "*\nsoil moisture: ";
         message += parasiteData[j].soil_moisture/100.0;
         message += "%\ntemperature: ";
@@ -118,4 +118,11 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
       bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
     }
   }
+}
+
+bool Messenger::ping(){
+    if(secured_client.connected()){
+        return true;
+    }
+    return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
 }

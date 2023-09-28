@@ -6,27 +6,34 @@
 #include <numeric> 
 #include <WiFi.h>
 
-// List of known sensors' BLE addresses
-std::vector<std::string> knownBLEAddresses = {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17"};
-std::vector<std::string> plantNames = {"avocado", "Maja's ivy"};
-//std::vector<std::string> knownBLEAddresses = {"cb:1b:5f:bf:07:aa"};
-//std::vector<std::string> plantNames = {"***REMOVED***' ivy"};
-//#define NUMBER_OF_PLANTS 1
-#define NUMBER_OF_PLANTS 2
+//#define MAJA_conf 1
+#define ***REMOVED***_conf 1
 
-#define HOSTNAME "Plantbase One"
-
-// Wifi network station credentials
-//#define WIFI_SSID "***REMOVED***"
-//#define WIFI_PASSWORD "***REMOVED***"
-#define WIFI_SSID "***REMOVED***"
-#define WIFI_PASSWORD "***REMOVED***"
-// Telegram BOT Token (Get from Botfather)
-//#define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
-#define BOT_TOKEN "***REMOVED***" // Maja Bot
-#define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
-//#define CHAT_ID_USER "***REMOVED***" //***REMOVED***
-#define CHAT_ID_USER "***REMOVED***" //Maja
+#ifdef MAJA_conf
+    #define NUMBER_OF_PLANTS 2
+    #define plantNames = {"avocado", "Maja's ivy"};
+    #define knownBLEAddresses {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17"}
+    #define HOSTNAME "Plantbase One"
+    #define WIFI_SSID "***REMOVED***"
+    #define WIFI_PASSWORD "***REMOVED***"
+    // Telegram BOT Token (Get from Botfather)
+    #define BOT_TOKEN "***REMOVED***" // Maja Bot
+    #define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
+    #define CHAT_ID_USER "***REMOVED***" //Maja
+#endif
+    
+#ifdef ***REMOVED***_conf
+    #define NUMBER_OF_PLANTS 1
+    #define knownBLEAddresses {"cb:1b:5f:bf:07:aa"}
+    #define plantNames {"***REMOVED***' ivy"}
+    #define HOSTNAME "Plantbase Two"
+    // Wifi network station credentials
+    #define WIFI_SSID "***REMOVED***"
+    #define WIFI_PASSWORD "***REMOVED***"
+    #define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
+    #define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
+    #define CHAT_ID_USER "***REMOVED***" //***REMOVED***
+#endif
 
 #define CHAT_ID_MAJA "***REMOVED***" //Maja @ ***REMOVED*** Bot
 
@@ -44,8 +51,13 @@ std::vector<std::string> plantNames = {"avocado", "Maja's ivy"};
 #define WATERING_THANKYOU_LEVEL 50
 
 
+//Serial Debugging in Messenger Class
+#define MESSENGER_SERIAL_DEBUG 1
 
+//Serial Debugging of UniversalTelegramBot
 //#define TELEGRAM_DEBUG
+
+//ESP Core debug
 //#ifdef CORE_DEBUG_LEVEL
 //#undef CORE_DEBUG_LEVEL
 //#endif
