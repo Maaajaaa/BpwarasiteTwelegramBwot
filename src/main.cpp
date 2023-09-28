@@ -1,14 +1,12 @@
 #include <Arduino.h>
 #include <config.h>
+#include <Messenger/Messenger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
-
-WiFiClientSecure secured_client;
-UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 BParasite parasite(knownBLEAddresses);
-
 BParasite_Data_S parasiteData[NUMBER_OF_PLANTS];
+
 SemaphoreHandle_t mutex;
 
 bool warningNOTDelivered[NUMBER_OF_PLANTS]= {0};
@@ -23,47 +21,7 @@ void handleNewMessages(int);
 void connectToWifiAndGetDST();
 void parasiteReadingTask(void *pvParameters);
 
-void connectToWifiAndGetDST(){
-  //stop and destroy sntp service//stop smooth time adjustment and set local time manually
-  timeval epoch = {0, 0}; //Jan 1 1970
-  settimeofday((const timeval*)&epoch, 0);
-
-  Serial.print("Connecting to Wifi SSID ");
-  Serial.print(WIFI_SSID);
-  WiFi.setHostname(HOSTNAME);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  pinMode(LED_BUILTIN, OUTPUT);
-  //turn LED on
-  digitalWrite(LED_BUILTIN, LOW); 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.print("\nWiFi connected. IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("Retrieving time: ");
-  configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
-  time_t now = time(nullptr);
-  while (now < 3 * 60)
-  {
-    Serial.print(".");
-    delay(100);
-    now = time(nullptr);
-  }
-  //if DST couldn't be aquired set manual time (which will be off, but maybe at least the year is close enough for a secure connection)
-  if(now < 4 * 60){
-    //stop smooth time adjustment and set local time manually
-    timeval epoch = {1695159464, 0}; //Sep 19 2023
-    settimeofday((const timeval*)&epoch, 0);
-  }
-  Serial.println(now);
-
-  //update time stamps
-  lastTimeoutCheck = time(nullptr);
-
-  digitalWrite(LED_BUILTIN, HIGH);
-}
+Messenger messenger;
 
 void setup() {
     Serial.begin(115200);    
@@ -73,22 +31,8 @@ void setup() {
     mutex = xSemaphoreCreateMutex();
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
     connectToWifiAndGetDST();   
-
-    secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-    String message = String("Reciever of soil moisture of ");
-    for(int i = 0; i< plantNames.size(); i++){
-      if(i == plantNames.size() -1 && i > 0){
-        message += " and ";
-      } else if(i > 0){
-        message += ", ";
-      }
-      message += plantNames[i].c_str();
-    }
-    message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
-    //markdownv2 requires escape of . characters, so v1 is used for simplicity
-    if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-      Serial.println("SENDING MESSAGE FAILED");
-    };
+    
+    messenger.sendOnlineMessage();    
 }
 
 void loop() {
@@ -135,13 +79,7 @@ void loop() {
             //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
             if(time(nullptr)-lastTimeDataReceived[i] >= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived[i] != 0){
               criticalWarningNOTDelivered[i]=false;
-              offlineWarningNOTDelivered[i]=false;
-              String message = "_woof_  Sensor of ";
-              message += plantNames[i].c_str();
-              message += " is back online _happy woof_, signal strength is: ";
-              message += prstDatCpyAtIndexI.rssi;
-              message += " dBm";
-              bot.sendMessage(CHAT_ID, message, "markdown");
+              offlineWarningNOTDelivered[i]=!messenger.sendOfflineWarning(i, prstDatCpyAtIndexI);
             }
 
             if (prstDatCpyAtIndexI.valid){   
@@ -165,18 +103,7 @@ void loop() {
                 moistureCritical[i]=true;
               }
               if(criticalWarningNOTDelivered[i]){
-                //send critcally low messages
-                String message = "\xF0\x9F\x90\xB6 _WOOF_ \xF0\x9F\x90\xB6 moisture of ";
-                message += plantNames[i].c_str();
-                message += "'s soil CRITICALLY low \xF0\x9F\x98\xB1 ";
-                message += prstDatCpyAtIndexI.soil_moisture/100.0;
-                message += "%";
-                if(!bot.sendMessage(CHAT_ID, message, "markdown")){
-                  Serial.println("SENDING MESSAGE FAILED");
-                }else{
-                    
-                    Serial.println("critical warning delivered");
-                }
+                criticalWarningNOTDelivered[i] =! messenger.sendCriticallyLowMessage(i, prstDatCpyAtIndexI);
               }
               
             }else if( prstDatCpyAtIndexI.soil_moisture/100.0 <= LOW_MOISTURE_LEVEL){
@@ -190,17 +117,7 @@ void loop() {
               }
               //deliver warning if neccessarry and connected
               if(warningNOTDelivered[i] && WiFi.status() == WL_CONNECTED){
-                String message = "\xF0\x9F\x90\xB6 _woof_ moisture of ";
-                message += plantNames[i].c_str();
-                message += "'s soil low ";
-                message += prstDatCpyAtIndexI.soil_moisture/100.0;
-                message += "% \xF0\x9F\x9A\xB1";
-                if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-                  Serial.println("SENDING MESSAGE FAILED");
-                }else{
-                  Serial.println("warning delivered");
-                  warningNOTDelivered[i]=false;
-                }
+                warningNOTDelivered[i] =! messenger.sendLowMessage(i, prstDatCpyAtIndexI);
               }
             } else if( prstDatCpyAtIndexI.soil_moisture/100.0 >= WATERING_THANKYOU_LEVEL && (moistureLow[i] || moistureCritical[i])){
               //reset all warnings
@@ -208,16 +125,7 @@ void loop() {
               moistureLow[i] = false;
               warningNOTDelivered[i]=false;
               criticalWarningNOTDelivered[i]=false;
-              String message = "Thank you for watering ";
-              message += plantNames[i].c_str();
-              message += ", soil moisture went up to ";
-              message += prstDatCpyAtIndexI.soil_moisture/100.0;
-              message += "% \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 _happy panting_";
-              if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-                Serial.println("SENDING MESSAGE FAILED");
-              }else{
-                Serial.println("thank you for watering delivered");
-              }
+              messenger.sendThankYouMessage(i, prstDatCpyAtIndexI);
             }
 
             //set data as invalid to signify that it has been processed
@@ -231,42 +139,20 @@ void loop() {
             }
          }
     }
-    //Serial.println("BLE Devices found (total): " + String(found));
-
-    // Delete results from BLEScan buffer to release memory
-    //parasite.clearScanResults();
-
-    //timeout check every 25 minutes
-    if(time(nullptr) - lastTimeoutCheck > 60*25){
-      lastTimeoutCheck = time(nullptr);
-      for(int i=0; i<NUMBER_OF_PLANTS; i++){
-        //if more than 55 minutes since last reading and no warned yet
-        if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
-          //make sure internet connection is there
-          if(WiFi.status() != WL_CONNECTED){
-              connectToWifiAndGetDST();
-          }
-          String message = "\xF0\x9F\x90\xB6 _BARK_ \xF0\x9F\x90\xB6 sensor of ";
-              message += plantNames[i].c_str();
-              message += " has not delivered any new data since ";
-              message += (time(nullptr) - lastTimeDataReceived[i]) / 60;
-              message += " minutes! \xf0\x9f\xa7\x90";
-              if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-                Serial.println("SENDING offline warning MESSAGE FAILED");
-              }else{
-                  offlineWarningNOTDelivered[i]=false;
-                  Serial.println("offline warning delivered");
-              }
+    
+    for(int i=0; i<NUMBER_OF_PLANTS; i++){
+      //if more than 55 minutes since last reading and no warned yet
+      if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
+        //make sure internet connection is there
+        //if(WiFi.status() != WL_CONNECTED)
+        if(!messenger.ping()){
+            connectToWifiAndGetDST();
         }
+        offlineWarningNOTDelivered[i] != messenger.sendOfflineWarning(i, round(time(nullptr)-lastTimeDataReceived[i])/60);
       }
     }
 
-    //Handle Bot Updates
-    if(bot.getUpdates(bot.last_message_received + 1))
-    {
-      Serial.println("got response");
-      handleNewMessages(1);
-    }
+    messenger.handleUpdates(parasite.data, lastTimeDataReceived);
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
@@ -279,30 +165,12 @@ void loop() {
       connectToWifiAndGetDST();
     }
     if(mstLow && !warnNDel){
-      for(auto i=0; i<1400;){
-          digitalWrite(LED_BUILTIN, LOW);  
-          delay(200);                      
-          digitalWrite(LED_BUILTIN, HIGH);   
-          delay(200); 
-          i+= 400;                     
-      }
+      blink(200,200);
     //at least one with low moisture and at least with failed to send warning (which do not have to be the same ones but supposedly should, unless bug)
     }else if(mstLow && (warnNDel || critWarnNDel)){
-      for(auto i=0; i<=1400;){
-          digitalWrite(LED_BUILTIN, LOW);  
-          delay(500);                      
-          digitalWrite(LED_BUILTIN, HIGH);   
-          delay(500); 
-          i+= 1000;                     
-      }
+      blink(500, 500);
     }else if(mstCritLow){
-      for(auto i=0; i<=1400;){
-          digitalWrite(LED_BUILTIN, LOW);  
-          delay(100);                      
-          digitalWrite(LED_BUILTIN, HIGH);   
-          delay(200); 
-          i+= 300;                     
-      }
+      blink(100,200);
     }else{
       //readings okay
       delay(1400);
@@ -327,9 +195,6 @@ void parasiteReadingTask(void *pvParameters) {
                 || parasiteData[i].humidity != parasite.data[i].humidity){
                   parasiteData[i]=parasite.data[i];
             }
-            //else{
-            //  parasiteData[i].valid = false;
-            //}
             xSemaphoreGive(mutex);
             dataSaved = true;
           }else{
@@ -347,26 +212,54 @@ void parasiteReadingTask(void *pvParameters) {
   }
 }
 
-void handleNewMessages(int numNewMessages)
-{
-  for (int i = 0; i < numNewMessages; i++)
-  {
-    if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
-      String message = bot.messages[i].text;
-      for(int j = 0; j < NUMBER_OF_PLANTS; j++){
-        message += "\n\n*";
-        message += plantNames[j].c_str();
-        message += "*\nsoil moisture: ";
-        message += parasite.data[j].soil_moisture/100.0;
-        message += "%\ntemperature: ";
-        message += parasite.data[j].temperature/100.0;
-        message += "°C\nhumidity (air): ";
-        message += parasite.data[j].humidity/100.0;
-        message += " %rH\nmeasured: ";
-        message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
-        message += " minutes ago";
-      }
-      bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
-    }
+void blink(int lowTime, int highTime){
+  for(auto i=0; i<1400;){
+    digitalWrite(LED_BUILTIN, LOW);  
+    delay(lowTime);                      
+    digitalWrite(LED_BUILTIN, HIGH);   
+    delay(highTime); 
+    i+= lowTime + highTime;                     
   }
+}
+
+void connectToWifiAndGetDST(){
+  //stop and destroy sntp service//stop smooth time adjustment and set local time manually
+  timeval epoch = {0, 0}; //Jan 1 1970
+  settimeofday((const timeval*)&epoch, 0);
+
+  Serial.print("Connecting to Wifi SSID ");
+  Serial.print(WIFI_SSID);
+  WiFi.setHostname(HOSTNAME);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  pinMode(LED_BUILTIN, OUTPUT);
+  //turn LED on
+  digitalWrite(LED_BUILTIN, LOW); 
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.print("\nWiFi connected. IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Retrieving time: ");
+  configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
+  time_t now = time(nullptr);
+  while (now < 3 * 60)
+  {
+    Serial.print(".");
+    delay(100);
+    now = time(nullptr);
+  }
+  //if DST couldn't be aquired set manual time (which will be off, but maybe at least the year is close enough for a secure connection)
+  if(now < 4 * 60){
+    //stop smooth time adjustment and set local time manually
+    timeval epoch = {1695159464, 0}; //Sep 19 2023
+    settimeofday((const timeval*)&epoch, 0);
+  }
+  Serial.println(now);
+
+  //update time stamps
+  lastTimeoutCheck = time(nullptr);
+
+  digitalWrite(LED_BUILTIN, HIGH);
 }

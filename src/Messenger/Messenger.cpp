@@ -1,0 +1,121 @@
+#include <Messenger/Messenger.h>
+
+Messenger::Messenger(){
+    secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+}
+
+void Messenger::sendOnlineMessage(){
+    String message = String("Reciever of soil moisture of ");
+    for(int i = 0; i< plantNames.size(); i++){
+      if(i == plantNames.size() -1 && i > 0){
+        message += " and ";
+      } else if(i > 0){
+        message += ", ";
+      }
+      message += plantNames[i].c_str();
+    }
+    message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
+    //markdownv2 requires escape of . characters, so v1 is used for simplicity
+    if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
+      Serial.println("SENDING MESSAGE FAILED");
+    };
+}
+
+//returns 1 if message was sent successfully
+bool Messenger::sendOfflineWarning(int index, BParasite_Data_S parasiteData){
+    String message = "_woof_  Sensor of ";
+    message += plantNames[index].c_str();
+    message += " is back online _happy woof_, signal strength is: ";
+    message += parasiteData.rssi;
+    message += " dBm";
+    bool sent = bot.sendMessage(CHAT_ID, message, "mMrkdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offlineWarning");
+    return sent;
+}
+
+bool Messenger::sendCriticallyLowMessage(int index, BParasite_Data_S parasiteData){
+    String message = "\xF0\x9F\x90\xB6 _WOOF_ \xF0\x9F\x90\xB6 moisture of ";
+    message += plantNames[index].c_str();
+    message += "'s soil CRITICALLY low \xF0\x9F\x98\xB1 ";
+    message += parasiteData.soil_moisture/100.0;
+    message += "%";
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "ciritcally low");
+    return sent;
+}
+
+bool Messenger::sendLowMessage(int index, BParasite_Data_S parasiteData){
+    String message = "\xF0\x9F\x90\xB6 _woof_ moisture of ";
+    message += plantNames[index].c_str();
+    message += "'s soil low ";
+    message += parasiteData.soil_moisture/100.0;
+    message += "% \xF0\x9F\x9A\xB1";
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "low");
+    return sent;
+}
+
+bool Messenger::sendThankYouMessage(int index, BParasite_Data_S parasiteData){
+    String message = "Thank you for watering ";
+    message += plantNames[index].c_str();
+    message += ", soil moisture went up to ";
+    message += parasiteData.soil_moisture/100.0;
+    message += "% \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 _happy panting_";
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "thank you");
+    return sent;
+}
+
+bool Messenger::sendOfflineWarning(int index, int minutesOffline){
+    String message = "\xF0\x9F\x90\xB6 _BARK_ \xF0\x9F\x90\xB6 sensor of ";
+    message += plantNames[index].c_str();
+    message += " has not delivered any new data since ";
+    message += minutesOffline;
+    message += " minutes! \xf0\x9f\xa7\x90";
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offline warning");
+    return sent;
+}
+
+void Messenger::serialDebug(bool messageSent, String typeOfMessage){
+    if(!messageSent){
+        Serial.print("SENDING of "); 
+        Serial.print(typeOfMessage); 
+        Serial.println(" message FAILED"); 
+    }else{
+        Serial.print(typeOfMessage); 
+        Serial.println(" message sent");
+    }
+}
+
+void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[]){
+    //Handle Bot Updates
+    if(bot.getUpdates(bot.last_message_received + 1))
+    {
+      Serial.println("got response");
+      handleNewMessages(1, parasiteData, lastTimeDataReceived);
+    }
+}
+void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[])
+{
+  for (int i = 0; i < numNewMessages; i++)
+  {
+    if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
+      String message = bot.messages[i].text;
+      for(int j = 0; j < NUMBER_OF_PLANTS; j++){
+        message += "\n\n*";
+        message += plantNames[j].c_str();
+        message += "*\nsoil moisture: ";
+        message += parasiteData[j].soil_moisture/100.0;
+        message += "%\ntemperature: ";
+        message += parasiteData[j].temperature/100.0;
+        message += "°C\nhumidity (air): ";
+        message += parasiteData[j].humidity/100.0;
+        message += " %rH\nmeasured: ";
+        message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
+        message += " minutes ago";
+      }
+      bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
+    }
+  }
+}
