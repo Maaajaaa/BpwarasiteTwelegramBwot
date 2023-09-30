@@ -35,11 +35,6 @@ void setup() {
 }
 
 void loop() {
-     
-    
-    // Get sensor data - run BLE scan for <scanTime>
-    //unsigned found = parasite.getData(scanTime);
-
     for (int i=0; i < NUMBER_OF_PLANTS; i++) { 
 
         // gets a local copy of the ith sensor reading
@@ -73,7 +68,7 @@ void loop() {
         //invalid data won't be proccessed unless a message needs to be resent
         if (prstDatCpyAtIndexI.valid || warningNOTDelivered[i] || criticalWarningNOTDelivered[i]){
             //reset offline warning
-            offlineWarningNOTDelivered[i] = true;
+            offlineWarningNOTDelivered[i] = false;
             
             //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
             if(time(nullptr)-lastTimeDataReceived[i] >= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived[i] != 0){
@@ -147,7 +142,7 @@ void loop() {
         if(!messenger.ping()){
             connectToWifiAndGetDST();
         }
-        offlineWarningNOTDelivered[i] != messenger.sendOfflineWarning(round(time(nullptr)-lastTimeDataReceived[i])/60, parasite.data[i]);
+        offlineWarningNOTDelivered[i] = !messenger.sendOfflineWarning(round(time(nullptr)-lastTimeDataReceived[i])/60, parasite.data[i]);
       }
     }
 
