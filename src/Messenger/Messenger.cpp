@@ -22,7 +22,7 @@ void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
 }
 
 //returns 1 if message was sent successfully
-bool Messenger::sendOfflineWarning(BParasite_Data_S parasiteData){
+bool Messenger::sendOfflineEntwarnung(BParasite_Data_S parasiteData){
     String message = "_woof_  Sensor of ";
     message += parasiteData.name.c_str();
     message += " is back online _happy woof_, signal strength is: ";

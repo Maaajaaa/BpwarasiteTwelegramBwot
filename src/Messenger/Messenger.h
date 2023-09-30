@@ -12,7 +12,7 @@ class Messenger{
     public:
         Messenger();
         void sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData);
-        bool sendOfflineWarning(BParasite_Data_S parasiteData);
+        bool sendOfflineEntwarnung(BParasite_Data_S parasiteData);
         bool sendLowMessage(BParasite_Data_S parasiteData);
         bool sendCriticallyLowMessage(BParasite_Data_S parasiteData);
         bool sendThankYouMessage(BParasite_Data_S parasiteData);
