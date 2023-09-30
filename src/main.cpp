@@ -73,7 +73,7 @@ void loop() {
             //send entwarnung if sensor has been offline for too long (as it's reasonable to assume that a warning had been sent)
             if(time(nullptr)-lastTimeDataReceived[i] >= OFFLINE_WARNING_TIME * 60 && lastTimeDataReceived[i] != 0){
               criticalWarningNOTDelivered[i]=false;
-              offlineWarningNOTDelivered[i]=!messenger.sendOfflineWarning(prstDatCpyAtIndexI);
+              offlineWarningNOTDelivered[i]=!messenger.sendOfflineEntwarnung(prstDatCpyAtIndexI);
             }
 
             if (prstDatCpyAtIndexI.valid){   
