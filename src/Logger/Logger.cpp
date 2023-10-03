@@ -16,9 +16,23 @@ bool Logger::begin(){
     for(int i = 0; i<logFileNames.size(); i++){
         if(!SPIFFS.exists(logFileNames.at(i).c_str())){
             //create first line
-            writeFile(SPIFFS, logFileNames.at(i).c_str(), "unix timestamp (this formula =R2/86400000+DATE(1970;1;1) , where R2 is the cell containing the timestamp);moisture (divide by 100 to get %)\n");
+            String headerString = "unix timestamp in seconds (this formula =R2/86400+DATE(1970;1;1) , where R2 is the cell containing the timestamp);moisture (divide by 100 to get %)\n";
+            #ifdef LOG_TEMPERATURE
+            headerString += ";Temperature (divide by 100 for degrees celcius)";
+            #endif
+            #ifdef LOG_HUMIDITY
+            headerString += ";Humdity (divide by 100 for %)";
+            #endif
+            headerString += "\n";
+            writeFile(SPIFFS, logFileNames.at(i).c_str(), headerString.c_str());
+            File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_READ);
+            Serial.print("Log File ");
+            Serial.print(file.name());
+            Serial.print(" created, size: ");
+            Serial.println(file.size());
+            file.close();
         }else{
-            File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_WRITE);
+            File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_READ);
             Serial.print("Log File exists, size: ");
             Serial.println(file.size());
             file.close();

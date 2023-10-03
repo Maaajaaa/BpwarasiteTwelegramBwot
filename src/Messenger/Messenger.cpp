@@ -107,7 +107,8 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           if(myFile){
             Serial.print("Sending request for: ");
             Serial.println(logFileNames.at(j).c_str());
-            bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
+            std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1);
+            bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameWOSlash.c_str(), "document/csv", bot.messages[i].chat_id, myFile);
             Serial.println("request sent");
           }
         }
