@@ -109,5 +109,5 @@ void Logger::appendFile(fs::FS &fs, const char * path, const char * message){
     } else {
         Serial.println("- append failed");
     }
-    //file.close();
+    file.close();
 }
