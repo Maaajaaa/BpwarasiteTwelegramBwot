@@ -1,35 +1,52 @@
-
-#include <Logger/Logger.h>
-
-Logger::Logger(){
-}
+#include <Logger.h>
 
 bool Logger::begin(){
     if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
         Serial.println("SPIFFS Mount Failed");
         return false;
     }
-    //create LOG FILES if not existent
-    if(!SPIFFS.exists(mstLogFile0)){
-        //create first line
-        writeFile(SPIFFS, mstLogFile0, "tm;mst\n");
-    }else{
-        File file = SPIFFS.open(mstLogFile0, FILE_WRITE);
-        Serial.print("Log File exists, size: ");
-        Serial.println(file.size());
-        file.close();
+    for(int i = 0; i < 2; i++){
+        //generate file names
+        //logFileNames.at(i) = std::to_string(i) + std::string("_") + std::string(plantNames[i])+ std::string(".csv");
+        //create LOG FILES if not existent
+        if(!SPIFFS.exists(logFileNames.at(i).c_str())){
+            //create first line
+            //writeFile(SPIFFS, logFileNames.at(i).c_str(), "tm;mst\n");
+        }else{
+            //File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_WRITE);
+            Serial.print("Log File exists, size: ");
+            //Serial.println(file.size());
+            //file.close();
+        }
     }
-    return true;
+    return true;    
 }
 
-bool Logger::logData(int data_id, std::string data){
-    if(data_id == 0){
-        appendFile(SPIFFS, mstLogFile0, data.c_str());
-    }
+bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
+    char buffer[80];
+    strftime(buffer,sizeof(buffer),"%Y-%m-%d %H:%M:%S",localtime(&time));
+    String timeString = String(buffer);
+    timeString += ";";
+    timeString += data.soil_moisture/100;
+    #ifdef LOG_TEMPERATURE
+    timeString += ";";
+    timeString += data.temperature/100;
+    #endif
+    #ifdef LOG_HUMIDITY
+    timeString += ";";
+    timeString += data.humidity/100;
+    #endif
+    appendFile(SPIFFS, logFileNames.at(sensor_id).c_str(), timeString.c_str());
     return 1;
 }
 
-void Logger::listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+std::vector<std::string> Logger::getLogFilePaths()
+{
+    return logFileNames;
+}
+
+void Logger::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
     Serial.printf("Listing directory: %s\r\n", dirname);
 
     File root = fs.open(dirname);
