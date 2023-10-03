@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Messenger/Messenger.h>
+#include <Logger/Logger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -22,11 +23,13 @@ void parasiteReadingTask(void *pvParameters);
 void blink(int ,int);
 
 Messenger messenger;
+Logger logger;
 
 void setup() {
     Serial.begin(115200);    
     // Initialization
     parasite.begin();
+    logger.begin();
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
@@ -188,6 +191,11 @@ void parasiteReadingTask(void *pvParameters) {
                 || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
                 || parasiteData[i].humidity != parasite.data[i].humidity){
                   parasiteData[i]=parasite.data[i];
+                  std::string data = std::to_string(time(nullptr));
+                  data += ";";
+                  data += std::to_string(parasiteData[i].soil_moisture);
+                  data += "\n";
+                  logger.logData(i,data); 
             }
             xSemaphoreGive(mutex);
             dataSaved = true;
@@ -199,7 +207,7 @@ void parasiteReadingTask(void *pvParameters) {
         }        
       } else{
            Serial.println("Mutex null");
-        } 
+      }
     } 
     parasite.clearScanResults(); // clear results from BLEScan buffer to release memory
     vTaskDelay(delayTime / portTICK_PERIOD_MS);
