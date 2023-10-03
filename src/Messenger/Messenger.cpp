@@ -102,11 +102,14 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
   {
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
       if(bot.messages[i].text == "log"){
-        File myFile = SPIFFS.open(mstLogFile0);
-        if(myFile){
-          Serial.println("Sending request");
-          bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
-          Serial.println("request sent");
+        for(int j=0; j<logFileNames.size(); j++){
+          File myFile = SPIFFS.open(logFileNames.at(j).c_str());
+          if(myFile){
+            Serial.print("Sending request for: ");
+            Serial.println(logFileNames.at(j).c_str());
+            bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
+            Serial.println("request sent");
+          }
         }
       }else{
         String message = bot.messages[i].text;

@@ -1,10 +1,10 @@
-
 #include <Logger/Logger.h>
 
 Logger::Logger(std::vector<std::string> plantNames){
+    logFileNames.resize(plantNames.size());
     for(int i = 0; i<plantNames.size(); i++){
         //generate names
-        logFileNames.at(i) = std::to_string(i) + std::string("_") + std::string(plantNames[i])+ std::string(".csv");
+        logFileNames.at(i) = std::string("/") + std::to_string(i) + std::string("_") + std::string(plantNames[i])+ std::string(".csv");
     }
 }
 
