@@ -23,7 +23,7 @@ void parasiteReadingTask(void *pvParameters);
 void blink(int ,int);
 
 Messenger messenger;
-Logger logger;
+Logger logger(plantNames);
 
 void setup() {
     Serial.begin(115200);    
@@ -149,7 +149,7 @@ void loop() {
       }
     }
 
-    messenger.handleUpdates(parasite.data, lastTimeDataReceived);
+    messenger.handleUpdates(parasite.data, lastTimeDataReceived, logger.getLogFileNames());
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning

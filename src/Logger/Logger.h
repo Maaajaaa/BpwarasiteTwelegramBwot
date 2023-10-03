@@ -13,9 +13,10 @@
 #define LOG_HUMIDITY
 class Logger{
     public:
-        Logger();
+        Logger(std::vector<std::string>);
         bool begin();
         bool logData(int sensor_id, BParasite_Data_S data, time_t time);
+        std::vector<std::string> getLogFileNames();
     private:
         void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
         void readFile(fs::FS &fs, const char * path);
@@ -23,4 +24,5 @@ class Logger{
         void appendFile(fs::FS &fs, const char * path, const char * message);
 
         bool successfulStart;
+        std::vector<std::string> logFileNames;
 };

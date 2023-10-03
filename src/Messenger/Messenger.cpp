@@ -88,15 +88,15 @@ void Messenger::serialDebug(bool messageSent, String typeOfMessage){
     }
 }
 
-void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[]){
+void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames){
     //Handle Bot Updates
     if(bot.getUpdates(bot.last_message_received + 1))
     {
       Serial.println("got response");
-      handleNewMessages(1, parasiteData, lastTimeDataReceived);
+      handleNewMessages(1, parasiteData, lastTimeDataReceived, logFileNames);
     }
 }
-void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[])
+void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames)
 {
   for (int i = 0; i < numNewMessages; i++)
   {
