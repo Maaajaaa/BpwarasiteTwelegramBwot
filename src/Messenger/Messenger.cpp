@@ -1,9 +1,5 @@
 #include <Messenger/Messenger.h>
 
-
-bool isMoreDataAvailable();
-byte getNextByte();
-
 Messenger::Messenger(){
     secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 }
@@ -92,26 +88,25 @@ void Messenger::serialDebug(bool messageSent, String typeOfMessage){
     }
 }
 
-void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[]){
+void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> fileNames){
     //Handle Bot Updates
     if(bot.getUpdates(bot.last_message_received + 1))
     {
       Serial.println("got response");
-      handleNewMessages(1, parasiteData, lastTimeDataReceived);
+      handleNewMessages(1, parasiteData, lastTimeDataReceived, fileNames);
     }
 }
-void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[])
+void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> fileNames)
 {
   for (int i = 0; i < numNewMessages; i++)
   {
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
-      if(bot.messages[i].text == "csv"){
-        myFile = SPIFFS.open(mstLogFile0, FILE_READ);
-        if(myFile){
-            Serial.println(myFile.name());
-            String sent = bot.sendDocumentByBinary(bot.messages[i].chat_id , "image/jpeg", myFile.size(),
-                                        isMoreDataAvailable,
-                                        getNextByte, nullptr, nullptr);
+      if(bot.messages[i].text == "log"){
+        for(int i = 0; i<NUMBER_OF_PLANTS; i++){
+          File myFile = SPIFFS.open(fileNames[i].c_str(), FILE_READ);
+          if(myFile){
+            bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
+          }
         }
       }else{
         String message = bot.messages[i].text;
@@ -139,14 +134,4 @@ bool Messenger::ping(){
         return true;
     }
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
-}
-
-bool isMoreDataAvailable()
-{
-  return myFile.available();
-}
-
-byte getNextByte()
-{
-  return myFile.read();
 }

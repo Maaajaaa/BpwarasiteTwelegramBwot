@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Messenger/Messenger.h>
-#include <Logger/Logger.h>
+#include <Logger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -149,7 +149,7 @@ void loop() {
       }
     }
 
-    messenger.handleUpdates(parasite.data, lastTimeDataReceived);
+    messenger.handleUpdates(parasite.data, lastTimeDataReceived, logger.getLogFilePaths());
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
@@ -191,11 +191,7 @@ void parasiteReadingTask(void *pvParameters) {
                 || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
                 || parasiteData[i].humidity != parasite.data[i].humidity){
                   parasiteData[i]=parasite.data[i];
-                  std::string data = std::to_string(time(nullptr));
-                  data += ";";
-                  data += std::to_string(parasiteData[i].soil_moisture);
-                  data += "\n";
-                  logger.logData(i,data); 
+                  logger.logData(i, parasiteData[i], time(nullptr)); 
             }
             xSemaphoreGive(mutex);
             dataSaved = true;
