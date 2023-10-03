@@ -6,15 +6,17 @@ Logger::Logger(){
 
 bool Logger::begin(){
     if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
-        Serial.println("SPIFFS Mount Failed");
+        Serial.println("SPIFFS formating and mount Failed");
         return false;
     }
     //create LOG FILES if not existent
     if(!SPIFFS.exists(mstLogFile0)){
+        //format spiffs
+        Serial.println("log file does not exist");
         //create first line
-        writeFile(SPIFFS, mstLogFile0, "tm;mst\n");
+        writeFile(SPIFFS, mstLogFile0, "unix timestamp (this formula =R2/86400000+DATE(1970;1;1) , where R2 is the cell containing the timestamp);moisture (divide by 100 to get %)\n");
     }else{
-        File file = SPIFFS.open(mstLogFile0, FILE_WRITE);
+        File file = SPIFFS.open(mstLogFile0, FILE_READ);
         Serial.print("Log File exists, size: ");
         Serial.println(file.size());
         file.close();
@@ -22,10 +24,20 @@ bool Logger::begin(){
     return true;
 }
 
-bool Logger::logData(int data_id, std::string data){
-    if(data_id == 0){
-        appendFile(SPIFFS, mstLogFile0, data.c_str());
-    }
+bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
+    String timeString = String(time);
+    timeString += ";";
+    timeString += data.soil_moisture;
+    #ifdef LOG_TEMPERATURE
+    timeString += ";";
+    timeString += data.temperature;
+    #endif
+    #ifdef LOG_HUMIDITY
+    timeString += ";";
+    timeString += data.humidity;
+    #endif
+    timeString += "\n";
+    appendFile(SPIFFS, mstLogFile0 ,timeString.c_str());
     return 1;
 }
 

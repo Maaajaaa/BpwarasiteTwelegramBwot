@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Messenger/Messenger.h>
-#include <Logger.h>
+#include <Logger/Logger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -149,7 +149,7 @@ void loop() {
       }
     }
 
-    messenger.handleUpdates(parasite.data, lastTimeDataReceived, logger.getLogFilePaths());
+    messenger.handleUpdates(parasite.data, lastTimeDataReceived);
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning

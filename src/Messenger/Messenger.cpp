@@ -88,25 +88,25 @@ void Messenger::serialDebug(bool messageSent, String typeOfMessage){
     }
 }
 
-void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> fileNames){
+void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[]){
     //Handle Bot Updates
     if(bot.getUpdates(bot.last_message_received + 1))
     {
       Serial.println("got response");
-      handleNewMessages(1, parasiteData, lastTimeDataReceived, fileNames);
+      handleNewMessages(1, parasiteData, lastTimeDataReceived);
     }
 }
-void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> fileNames)
+void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[])
 {
   for (int i = 0; i < numNewMessages; i++)
   {
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
       if(bot.messages[i].text == "log"){
-        for(int i = 0; i<NUMBER_OF_PLANTS; i++){
-          File myFile = SPIFFS.open(fileNames[i].c_str(), FILE_READ);
-          if(myFile){
-            bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
-          }
+        File myFile = SPIFFS.open(mstLogFile0);
+        if(myFile){
+          Serial.println("Sending request");
+          bot.sendMultipartFormDataToTelegram("sendDocument", "document", "log.csv", "document/csv", bot.messages[i].chat_id, myFile);
+          Serial.println("request sent");
         }
       }else{
         String message = bot.messages[i].text;
