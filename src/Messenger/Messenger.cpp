@@ -1,5 +1,9 @@
 #include <Messenger/Messenger.h>
 
+
+bool isMoreDataAvailable();
+byte getNextByte();
+
 Messenger::Messenger(){
     secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 }
@@ -101,21 +105,31 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
   for (int i = 0; i < numNewMessages; i++)
   {
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
-      String message = bot.messages[i].text;
-      for(int j = 0; j < NUMBER_OF_PLANTS; j++){
-        message += "\n\n*";
-        message += parasiteData[j].name.c_str();
-        message += "*\nsoil moisture: ";
-        message += parasiteData[j].soil_moisture/100.0;
-        message += "%\ntemperature: ";
-        message += parasiteData[j].temperature/100.0;
-        message += "°C\nhumidity (air): ";
-        message += parasiteData[j].humidity/100.0;
-        message += " %rH\nmeasured: ";
-        message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
-        message += " minutes ago";
+      if(bot.messages[i].text == "csv"){
+        myFile = SPIFFS.open(mstLogFile0, FILE_READ);
+        if(myFile){
+            Serial.println(myFile.name());
+            String sent = bot.sendDocumentByBinary(bot.messages[i].chat_id , "image/jpeg", myFile.size(),
+                                        isMoreDataAvailable,
+                                        getNextByte, nullptr, nullptr);
+        }
+      }else{
+        String message = bot.messages[i].text;
+        for(int j = 0; j < NUMBER_OF_PLANTS; j++){
+            message += "\n\n*";
+            message += parasiteData[j].name.c_str();
+            message += "*\nsoil moisture: ";
+            message += parasiteData[j].soil_moisture/100.0;
+            message += "%\ntemperature: ";
+            message += parasiteData[j].temperature/100.0;
+            message += "°C\nhumidity (air): ";
+            message += parasiteData[j].humidity/100.0;
+            message += " %rH\nmeasured: ";
+            message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
+            message += " minutes ago";
+        }
+        bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
       }
-      bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
     }
   }
 }
@@ -125,4 +139,14 @@ bool Messenger::ping(){
         return true;
     }
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
+}
+
+bool isMoreDataAvailable()
+{
+  return myFile.available();
+}
+
+byte getNextByte()
+{
+  return myFile.read();
 }

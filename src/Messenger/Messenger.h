@@ -8,6 +8,8 @@
 #include <vector>
 #include <config.h>
 
+#include <SPIFFS.h>
+
 class Messenger{
     public:
         Messenger();
@@ -21,7 +23,7 @@ class Messenger{
         bool ping();
 
     private:
-
+        File myFile;
         void handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[]);
         void serialDebug(bool messageSent, String typeOfMessage);
         WiFiClientSecure secured_client;

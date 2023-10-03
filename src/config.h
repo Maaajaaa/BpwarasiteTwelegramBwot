@@ -6,12 +6,15 @@
 #include <numeric> 
 #include <WiFi.h>
 
-//#define MAJA_conf 1
-#define ***REMOVED***_conf 1
+
+#define mstLogFile0 "/moistLog0.csv"
+
+#define MAJA_conf 1
+//#define ***REMOVED***_conf 1
 
 #ifdef MAJA_conf
     #define NUMBER_OF_PLANTS 2
-    #define plantNames = {"avocado", "Maja's ivy"};
+    #define plantNames {"avocado", "Maja's ivy"}
     #define knownBLEAddresses {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17"}
     #define HOSTNAME "Plantbase One"
     #define WIFI_SSID "***REMOVED***"
