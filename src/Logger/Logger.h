@@ -8,7 +8,6 @@
    https://github.com/me-no-dev/arduino-esp32fs-plugin */
 #define FORMAT_SPIFFS_IF_FAILED true
 
-#define mstLogFile "/moistLog0.csv"
 #define LOG_TEMPERATURE
 #define LOG_HUMIDITY
 class Logger{

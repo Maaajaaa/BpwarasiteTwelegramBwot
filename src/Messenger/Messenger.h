@@ -20,6 +20,7 @@ class Messenger{
         bool ping();
 
     private:
+        std::string chartSVGFirstBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, std::string  title);
         void handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames);
         void serialDebug(bool messageSent, String typeOfMessage);
         WiFiClientSecure secured_client;

@@ -139,3 +139,92 @@ bool Messenger::ping(){
     }
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
 }
+
+/// @brief 
+/// @param width width of the chart
+/// @param height height of the chart
+/// @param padding padding on all sides
+/// @param minTemp highest temperature on the scale
+/// @param maxTemp lowest Temperature on the scale
+/// @param minPercent lowest percentage on the scale
+/// @param maxPercent highest percentage on the scale
+/// @param minTime lower end of the x axis
+/// @param maxTime higher end of the x axis
+/// @param title title of the chart
+/// @return 
+std::string Messenger::chartSVGFirstBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, std::string title){
+  std::string space = std::string(" ");
+  
+  //initial stuff and font
+  std::string svg = std::string("<?xml version=\"1.0\" standalone=\"no\"?>"
+    "\n<svg viewBox=\"0 0 ") + std::to_string(width+padding*2) + space + std::to_string(height+padding*2) 
+    + std::string("\" preserveAspectRatio=\"xMidYMid meet\" xmlns=\"http://www.w3.org/2000/svg\">"
+    "<defs><defs><style>svg{font-family: -apple-system, system-ui, BlinkMacSystemFont, \"Segoe UI\", Roboto;}</style></defs></defs>");
+  
+  //background
+  svg += std::string("\n<rect width=\"100%\" height=\"100%\" fill=\"#212733\" />");
+  
+  //horizontal lines with labels
+  int horizontalLines = 5;
+  int verticalTicks = 6;
+  int verticalLineLength = 10;
+  for(int i = 0; i<horizontalLines+1; i++){
+    int offset_y = padding + i*height/horizontalLines;
+    int font_padding = 5;
+    
+    //left label
+    svg += std::string("\n<text x=\"") + std::to_string(padding-font_padding) + std::string("\" y=\"") +  std::to_string(offset_y) + 
+      std::string("\" dominant-baseline=\"middle\" text-anchor=\"end\" font-size=\"12\" fill=\"#E6FCFB\" font-weight=\"bold\" >") + 
+      std::to_string(maxPercent - i* (maxPercent-minPercent)/horizontalLines) + std::string("%</text>");
+    
+    //right label
+    svg += std::string("\n<text x=\"") + std::to_string(width + padding + font_padding) + std::string("\" y=\"") +  std::to_string(offset_y) + 
+      std::string("\" dominant-baseline=\"middle\" text-anchor=\"start\" font-size=\"12\" fill=\"#00aaff\" font-weight=\"bold\" >") + 
+      std::to_string(maxTemp - i*(maxTemp-minTemp)/horizontalLines) + std::string("°C</text>");
+    
+    //horizontal line
+    if(i==horizontalLines){
+      //final line is not dashed
+      svg += std::string("\n<path stroke=\"#74838f99\" stroke-width=\"1\"  d=\"M ");
+    }else{
+      svg += std::string("\n<path stroke=\"#74838f99\" stroke-dasharray=\"10 6\" stroke-width=\"0.5\"  d=\"M ");
+    }
+    svg += std::to_string(padding) + space + std::to_string(offset_y) + std::string(" L ") + std::to_string(width + padding) + space + std::to_string(offset_y) + std::string("\" />");
+    
+    //draw vertical ticks and text labels
+    if(i == horizontalLines){
+      svg+= std::string("\n\n");
+      for(int j = 0; j < verticalTicks; j++){
+        int offset_x = padding + j*width/horizontalLines;
+
+        //time print as per https://stackoverflow.com/a/16358264
+        time_t currentTime = maxTime + j* (maxTime - minTime)/verticalTicks;
+        Serial.println(currentTime);
+        struct tm * timeinfo;
+        char hours[6];
+        char day[11];
+
+        //time (&currentTime);
+        timeinfo = localtime(&currentTime);
+
+        strftime(hours,sizeof(hours),"%H:%M",timeinfo);
+        strftime(day,sizeof(day),"%d.%m.%Y",timeinfo);
+        //horizontal ticks
+        svg += std::string("\n<path stroke=\"#74838f99\" stroke-width=\"1.0\"  d=\" M ") + std::to_string(offset_x) + space +  std::to_string(offset_y) + 
+          std::string(" L ") + std::to_string(offset_x) + space + std::to_string(offset_y + verticalLineLength) + std::string("\" />");
+        
+        //horizontal labels (time)
+        svg += std::string("\n<text x=\"") + std::to_string(offset_x) + std::string("\" y=\"") +  std::to_string(offset_y + verticalLineLength + font_padding) +
+          std::string("\" dominant-baseline=\"hanging\" text-anchor=\"middle\" font-size=\"12\" fill=\"#74838f\" font-weight=\"bold\" >") +
+          std::string(hours) + std::string("<tspan text-anchor=\"middle\" x=\"") + std::to_string(offset_x) + std::string("\" dy=\"1em\">") + std::string(day) + std::string("</tspan></text>");
+      }
+    }
+    
+  }
+
+  //title text
+  svg+= std::string("\n\n<text x=\"50%\" y=\"25\" dominant-baseline=\"middle\" text-anchor=\"middle\" font-size=\"18\" fill=\"#FFF\" font-weight=\"700\" >") +
+    title + std::string("</text>");
+
+  return svg;
+}
