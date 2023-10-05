@@ -16,7 +16,7 @@ bool Logger::begin(){
     for(int i = 0; i<logFileNames.size(); i++){
         if(!SPIFFS.exists(logFileNames.at(i).c_str())){
             //create first line
-            String headerString = "unix timestamp in seconds (this formula =R2/86400+DATE(1970;1;1) , where R2 is the cell containing the timestamp);moisture (divide by 100 to get %)\n";
+            String headerString = "unix timestamp in seconds (this formula =R2/86400+DATE(1970;1;1) , where R2 is the cell containing the timestamp);moisture (divide by 100 to get %)";
             #ifdef LOG_TEMPERATURE
             headerString += ";Temperature (divide by 100 for degrees celcius)";
             #endif
