@@ -140,6 +140,15 @@ bool Messenger::ping(){
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
 }
 
+/// @brief generates the first section of the svg, meaning the diagram background with lines and such, but no text
+/// @param width width of the chart
+/// @param height height of the chart
+/// @param padding padding on all sides
+/// @return svg as String
+String Messenger::chartSVGFirstBlock(int width, int height, int padding){
+  return chartSVGFirstAndLastBlock(width, height, padding, 0, 0, 0, 0, 0, 0, String(""), false);
+}
+
 /// @brief generates the first section of the svg, meaning the diagram background with lines and such. It is also reused to generate the labels as the coordinates are very similar to the ticks and lines
 /// @param width width of the chart
 /// @param height height of the chart
@@ -151,8 +160,24 @@ bool Messenger::ping(){
 /// @param minTime lower end of the x axis
 /// @param maxTime higher end of the x axis
 /// @param title title of the chart
-/// @return 
-String chartSVGFirstAndLastBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock = false){
+/// @return svg as String
+String Messenger::chartSVGLastBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title){
+  return chartSVGFirstAndLastBlock(width, height, padding, minTemp, maxTemp, minPercent, maxPercent, minTime, maxTime, title, true);
+}
+
+/// @brief generates the first section of the svg, meaning the diagram background with lines and such. It is also reused to generate the labels as the coordinates are very similar to the ticks and lines
+/// @param width width of the chart
+/// @param height height of the chart
+/// @param padding padding on all sides
+/// @param minTemp highest temperature on the scale
+/// @param maxTemp lowest Temperature on the scale
+/// @param minPercent lowest percentage on the scale
+/// @param maxPercent highest percentage on the scale
+/// @param minTime lower end of the x axis
+/// @param maxTime higher end of the x axis
+/// @param title title of the chart
+/// @return svg as String
+String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock = false){
   std::string space = std::string(" ");  
   std::string svg = std::string("");
 

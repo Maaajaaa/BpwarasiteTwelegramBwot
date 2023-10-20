@@ -18,6 +18,9 @@ class Messenger{
         bool sendOfflineWarning(int minutesOffline, BParasite_Data_S parasiteData);
         void handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames);
         bool ping();
+        String chartSVGFirstBlock(int width, int height, int padding);
+        String chartSVGLastBlock(int height, int width, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title);
+
 
     private:
         String chartSVGFirstAndLastBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock = false);
