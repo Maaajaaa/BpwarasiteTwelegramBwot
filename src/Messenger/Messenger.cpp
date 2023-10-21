@@ -113,7 +113,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           }
         }
       }else if(bot.messages[i].text == "graph"){
-        for(int j=0; j<1; j++){
+        for(int j=0; j<logFileNames.size(); j++){
           Serial.println(ESP.getFreeHeap());
           String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
           html += chartSVGFirstBlock(840, 300, 50);
@@ -131,10 +131,9 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
               Serial.println("- write failed");
           }
           file.close();
-          std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1);
-          //bot.sendDocument(bot.messages[i].chat_id, html, "test.html");
+          std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
           file = SPIFFS.open("/tmp.html");
-          bot.sendMultipartFormDataToTelegram("sendDocument", "document", "test.html", "document/html", bot.messages[i].chat_id, file);
+          bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
             
         }
       }
@@ -175,12 +174,17 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
   std::ifstream file(filename);
   if(!file.is_open())
     return String("File not found");
+
+  //get length of first line to know where to stop when reading backwards
+
+  std::string line = "";
+  std::getline(file, line);
+  int length_first_line = line.length() + 1;
   
   //as per https://stackoverflow.com/a/11876406
 
   //read backwards
   int lineNumber = 0;
-  std::string line = "";
   file.seekg(0,std::ios_base::end);      //Start at end of file
   char ch = ' ';                        //Init ch not equal to '\n'
 
@@ -206,8 +210,7 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
     //READ LINE
     while(ch != '\n'){
         file.seekg(-2,std::ios_base::cur); //Two steps back, this means we will NOT check the last character
-        if((int)file.tellg() <= 0){        //If passed the start of the file,
-            file.seekg(0);                 //this is the start of the line
+        if((int)file.tellg() <= length_first_line){        //if we get to the first line, end it
             break;
         }
         file.get(ch);                      //Check the next character
@@ -266,8 +269,7 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
     //else the -1 won't wort as length() returns unsigned int
     int len = line.length();
     file.seekg(-len-4,std::ios_base::cur); //Two steps back, this means we will NOT check the last character
-    if((int)file.tellg() <= 0){        //If passed the start of the file,
-        file.seekg(0);                 //this is the start of the line
+    if((int)file.tellg() <= length_first_line){        //If we get to the first line, stop
         break;
     }
     file.get(ch);                      //Check the next character
