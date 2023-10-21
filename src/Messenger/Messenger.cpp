@@ -28,8 +28,8 @@ bool Messenger::sendOfflineEntwarnung(BParasite_Data_S parasiteData){
     message += " is back online _happy woof_, signal strength is: ";
     message += parasiteData.rssi;
     message += " dBm";
-    bool sent = bot.sendMessage(CHAT_ID, message, "mMrkdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offlineWarning");
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offline entwarning");
     return sent;
 }
 
@@ -149,7 +149,9 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
             message += parasiteData[j].temperature/100.0;
             message += "°C\nhumidity (air): ";
             message += parasiteData[j].humidity/100.0;
-            message += " %rH\nmeasured: ";
+            message += " %rH\nsignal strength : ";
+            message += parasiteData[j].rssi;
+            message += " dbM\nmeasured: ";
             message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
             message += " minutes ago";
         }
