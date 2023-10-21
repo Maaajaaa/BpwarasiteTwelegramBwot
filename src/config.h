@@ -58,7 +58,7 @@
 #define MESSENGER_SERIAL_DEBUG 1
 
 //Serial Debugging of UniversalTelegramBot
-//#define TELEGRAM_DEBUG
+#define TELEGRAM_DEBUG
 
 //ESP Core debug
 //#ifdef CORE_DEBUG_LEVEL

@@ -6,6 +6,7 @@
 #include <BParasite.h>
 #include <config.h>
 #include <SPIFFS.h>
+#include <fstream>
 
 class Messenger{
     public:
@@ -19,11 +20,12 @@ class Messenger{
         void handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames);
         bool ping();
         String chartSVGFirstBlock(int width, int height, int padding);
-        String chartSVGLastBlock(int height, int width, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title);
-
+        String chartSVGLastBlock(int height, int width, int padding, float minTemp, float maxTemp, float minPercent, float maxPercent, unsigned long minTime, unsigned long maxTime, String title);
+        String chartSVGGraph(std::string filename, long timeframe);
 
     private:
-        String chartSVGFirstAndLastBlock(int width, int height, int padding, int minTemp, int maxTemp, int minPercent, int maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock = false);
+        long getCellOfLine(std::string line, int column);
+        String chartSVGFirstAndLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minPercent, float maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock);
         void handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames);
         void serialDebug(bool messageSent, String typeOfMessage);
         WiFiClientSecure secured_client;
