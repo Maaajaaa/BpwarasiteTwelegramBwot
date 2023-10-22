@@ -113,7 +113,9 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           }
         }
       }else if(bot.messages[i].text == "graph"){
+        bot.sendMessage(bot.messages[i].chat_id, String("generating graph, please wait"));
         for(int j=0; j<logFileNames.size(); j++){
+          unsigned long startTime = millis();
           Serial.println(ESP.getFreeHeap());
           String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
           html += chartSVGFirstBlock(840, 300, 50);
@@ -131,14 +133,24 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
               Serial.println("- write failed");
           }
           file.close();
+          
+          unsigned long endTimeTime = millis();
           std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
           file = SPIFFS.open("/tmp.html");
           bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
+          bot.sendMessage(bot.messages[i].chat_id, String(String(endTimeTime-startTime) + String("ms")));
+        }
+      }else if(bot.messages[i].text == "errors"){
+        for(int j=0; j<logFileNames.size(); j++){
+          File file = SPIFFS.open(ERROR_LOG_FILE);
+          bot.sendMultipartFormDataToTelegram("sendDocument", "document", "error_log.txt", "document/html", bot.messages[i].chat_id, file);
             
         }
       }
       else{
         String message = bot.messages[i].text;
+        message += "WiFi signal strength: ";
+        message += WiFi.RSSI();
         for(int j = 0; j < NUMBER_OF_PLANTS; j++){
             message += "\n\n*";
             message += parasiteData[j].name.c_str();
@@ -188,8 +200,6 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
   file.seekg(0,std::ios_base::end);      //Start at end of file
   char ch = ' ';                        //Init ch not equal to '\n'
 
-
-  int svg_x_stepsize = 10;
   //maxs and mins
   long maxTime = 0;
   long minTime = 0;
@@ -203,6 +213,7 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
   int humiMax = 0;
   int humiMin = 0;
 
+  int skippedLines = 0;
   std::string moisLine("<path d=\"M0 0");
   std::string tempLine("<path d=\"");
   std::string humiLine("<path d=\"M0 0");
@@ -216,55 +227,68 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
         file.get(ch);                      //Check the next character
     }
     std::getline(file,line);
-    Serial.println(line.c_str());
-    //PROCESS LINE INTO VARIABLES 
-    long time = getCellOfLine(line, 0);
-    int mois = getCellOfLine(line, 1);
-    int temp = getCellOfLine(line, 2);
-    int humi = getCellOfLine(line, 3);
+    long time = 0;
+    //only try to process the line if it cotains ;
+    if(std::count(line.begin(), line.end(), ';') >= 3){
+      //PROCESS LINE INTO VARIABLES 
+      time = getCellOfLine(line, 0);
+    }
+    //sanity check of time, if it's completely off we'll not use this dataset for plotting and keep going
+    // if time is after 01.01.2023 and there's at least 3 ; in this line of the file
+    if(time  > 1672613192){
+      //stop the diagram early if we jump for over 24h as this is probably useless to plot
+      if(maxTime-time > 24*60*60){
+        break;
+      }
+      int mois = getCellOfLine(line, 1);
+      int temp = getCellOfLine(line, 2);
+      int humi = getCellOfLine(line, 3);
 
-    //SET MAX MIN
-    if(lineNumber == 0){
-      maxTime = time;
-      minTime = time;
+      //SET MAX MIN
+      if(lineNumber == 0){
+        maxTime = time;
+        minTime = time;
 
-      moisMin = mois;
-      moisMax = mois;
+        moisMin = mois;
+        moisMax = mois;
 
-      tempMax = temp;
-      tempMin = temp;
-      
-      humiMax = humi;
-      humiMin = humi;
+        tempMax = temp;
+        tempMin = temp;
+        
+        humiMax = humi;
+        humiMin = humi;
+      }else{
+        minTime = time;
+
+        if(mois > moisMax) moisMax = mois;
+        if(temp > tempMax) tempMax = temp;
+        if(humi > humiMax) humiMax = humi;
+
+        if(mois < moisMin) moisMin = mois;
+        if(temp < tempMin) tempMin = temp;
+        if(humi < humiMin) humiMin = humi;
+      }
+
+      //GRAPH DRAWING
+      //we draw in a -100 to 100 coordinate system for Y, X will be in steps of svg_x_stepsize
+      //drawing will happen in reading order, and the path will be mirrored later on if needed
+      if(lineNumber == 0){
+        tempLine += std::string(" M ");
+        moisLine += std::string(" M ");
+        humiLine += std::string(" M ");
+      }
+      else{
+        tempLine += std::string(" L ");
+        moisLine += std::string(" L ");
+        humiLine += std::string(" L ");
+      }
+      unsigned long x_position = (maxTime-time);
+      moisLine += std::to_string(x_position) + std::string(" ") + std::to_string(mois);
+      tempLine += std::to_string(x_position) + std::string(" ") + std::to_string(temp);
+      humiLine += std::to_string(x_position) + std::string(" ") + std::to_string(humi);
     }else{
-      minTime = time;
-
-      if(mois > moisMax) moisMax = mois;
-      if(temp > tempMax) tempMax = temp;
-      if(humi > humiMax) humiMax = humi;
-
-      if(mois < moisMin) moisMin = mois;
-      if(temp < tempMin) tempMin = temp;
-      if(humi < humiMin) humiMin = humi;
+      skippedLines++;
     }
-
-    //GRAPH DRAWING
-    //we draw in a -100 to 100 coordinate system for Y, X will be in steps of svg_x_stepsize
-    //drawing will happen in reading order, and the path will be mirrored later on if needed
-    if(lineNumber == 0){
-      tempLine += std::string(" M ");
-      moisLine += std::string(" M ");
-      humiLine += std::string(" M ");
-    }
-    else{
-      tempLine += std::string(" L ");
-      moisLine += std::string(" L ");
-      humiLine += std::string(" L ");
-    }
-    moisLine += std::to_string(svg_x_stepsize*lineNumber) + std::string(" ") + std::to_string(mois);
-    tempLine += std::to_string(svg_x_stepsize*lineNumber) + std::string(" ") + std::to_string(temp);
-    humiLine += std::to_string(svg_x_stepsize*lineNumber) + std::string(" ") + std::to_string(humi);
-
     //NEXT LINE
     //else the -1 won't wort as length() returns unsigned int
     int len = line.length();
@@ -274,21 +298,15 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
     }
     file.get(ch);                      //Check the next character
 
-    Serial.print("Line: ");
-    Serial.print(lineNumber);
-    Serial.print(" maxT: ");
-    Serial.println(maxTime);
-    Serial.print(" minT: ");
-    Serial.println(minTime);
     lineNumber++;
   }
   //close tag
   int length = 840;
   int height = 300;
   int padding = 50;
-  float x_scale = (float) length / (lineNumber * svg_x_stepsize);
+  float x_scale =  (float) length / (maxTime - minTime);
 
-  float y_scale_temp = (float) height / (tempMax - tempMin);
+  double y_scale_temp = (float) height / (tempMax - tempMin);
   float y_translate_temp = -1.0*tempMax*y_scale_temp+padding+height;
 
   int maxPercent = max(moisMax, humiMax);
@@ -441,8 +459,8 @@ String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, 
 
         if(lastBlock){
           
-            //time print as per https://stackoverflow.com/a/16358264
-          time_t currentTime = maxTime + j* (maxTime - minTime)/verticalTicks;
+          //time print as per https://stackoverflow.com/a/16358264
+          time_t currentTime = round(maxTime + j* (float) (maxTime - minTime)/ (float) verticalTicks);
           struct tm * timeinfo;
           char hours[6];
           char day[11];
