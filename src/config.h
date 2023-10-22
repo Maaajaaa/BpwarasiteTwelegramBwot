@@ -7,7 +7,7 @@
 #include <WiFi.h>
 
 
-#define mstLogFile0 "/moistLog0.csv"
+#define ERROR_LOG_FILE "/errors.log"
 
 #define MAJA_conf 1
 //#define ***REMOVED***_conf 1

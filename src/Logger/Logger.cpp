@@ -1,10 +1,10 @@
-#include <Logger/Logger.h>
+#include "Logger.h"
 
-Logger::Logger(std::vector<std::string> plantNames){
-    logFileNames.resize(plantNames.size());
-    for(int i = 0; i<plantNames.size(); i++){
+Logger::Logger(std::vector<std::string> localPlantNames){
+    logFileNames.resize(localPlantNames.size());
+    for(int i = 0; i<localPlantNames.size(); i++){
         //generate names
-        logFileNames.at(i) = std::string("/") + std::to_string(i) + std::string("_") + std::string(plantNames[i])+ std::string(".csv");
+        logFileNames.at(i) = std::string("/") + std::to_string(i) + std::string("_") + std::string(localPlantNames[i])+ std::string(".csv");
     }
 }
 
@@ -23,8 +23,11 @@ bool Logger::begin(){
             #ifdef LOG_HUMIDITY
             headerString += ";Humdity (divide by 100 for %)";
             #endif
+            #ifdef LOG_SIGNAL
+            headerString += ";signal strenth in dBm";
+            #endif
             headerString += "\n";
-            writeFile(SPIFFS, logFileNames.at(i).c_str(), headerString.c_str());
+            writeFile(logFileNames.at(i).c_str(), headerString.c_str());
             File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_READ);
             Serial.print("Log File ");
             Serial.print(file.name());
@@ -53,8 +56,12 @@ bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
     timeString += ";";
     timeString += data.humidity;
     #endif
+    #ifdef LOG_SIGNAL
+    timeString += ";";
+    timeString += data.rssi;
+    #endif    
     timeString += "\n";
-    appendFile(SPIFFS, logFileNames.at(sensor_id).c_str(),timeString.c_str());
+    appendFile(logFileNames.at(sensor_id).c_str(),timeString.c_str());
     return 1;
 }
 
@@ -62,86 +69,35 @@ std::vector<std::string> Logger::getLogFileNames()
 {
     return logFileNames;
 }
-void Logger::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+
+int Logger::logError(const char *logtext, va_list args)
 {
-    Serial.printf("Listing directory: %s\r\n", dirname);
-
-    File root = fs.open(dirname);
-    if(!root){
-        Serial.println("- failed to open directory");
-        return;
-    }
-    if(!root.isDirectory()){
-        Serial.println(" - not a directory");
-        return;
-    }
-
-    File file = root.openNextFile();
-    while(file){
-        if(file.isDirectory()){
-            Serial.print("  DIR : ");
-            Serial.println(file.name());
-            if(levels){
-                listDir(fs, file.path(), levels -1);
-            }
-        } else {
-            Serial.print("  FILE: ");
-            Serial.print(file.name());
-            Serial.print("\tSIZE: ");
-            Serial.println(file.size());
-        }
-        file = root.openNextFile();
-    }
+    logError(logtext);
+    //still write to stdout
+    return vprintf(logtext, args);
 }
 
-void Logger::readFile(fs::FS &fs, const char * path){
-    Serial.printf("Reading file: %s\r\n", path);
-
-    File file = fs.open(path);
-    if(!file || file.isDirectory()){
-        Serial.println("- failed to open file for reading");
-        return;
-    }
-
-    Serial.println("- read from file:");
-    while(file.available()){
-        Serial.write(file.read());
-    }
-    file.close();
+int Logger::logError(const char *logtext)
+{
+    return appendFile(ERROR_LOG_FILE, logtext);
 }
+int Logger::writeFile(const char *filepath, const char *data, const char *mode)
+{
+    if( SPIFFS.totalBytes() - SPIFFS.usedBytes() <= sizeof(data)+2) return ENOSPC;
+    //if(!SPIFFS.exists(filepath)) return ENOENT;
+    File file = SPIFFS.open(filepath, mode);
+    if(file.isDirectory())  return EISDIR;
+    if(!file) return ENOENT;
 
-void Logger::writeFile(fs::FS &fs, const char * path, const char * message){
-    Serial.printf("Writing file: %s\r\n", path);
-
-    File file = fs.open(path, FILE_WRITE);
-    if(!file){
-        Serial.println("- failed to open file for writing");
-        return;
-    }
-    if(file.print(message)){
-        Serial.println("- file written");
+    if(file.print(data)){
+        Serial.println("- file written/appended");
     } else {
-        Serial.println("- write failed");
+        return EIO;
     }
     file.close();
+    return 0;
 }
 
-void Logger::appendFile(fs::FS &fs, const char * path, const char * message){
-    Serial.printf("Appending to file: %s\r\n", path);
-    int tBytes = SPIFFS.totalBytes(); 
-    int uBytes = SPIFFS.usedBytes();
-    if(tBytes - uBytes <= sizeof(message)+2){
-        Serial.println("ERROR\n\nERROR storage full\n\nERROR");
-    }
-    File file = fs.open(path, FILE_APPEND);
-    if(!file){
-        Serial.println("- failed to open file for appending");
-        return;
-    }
-    if(file.print(message)){
-        Serial.println("- message appended");
-    } else {
-        Serial.println("- append failed");
-    }
-    file.close();
+int Logger::appendFile(const char * filepath, const char * data){
+    return writeFile(filepath, data, FILE_APPEND);
 }

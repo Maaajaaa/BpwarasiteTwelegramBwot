@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Messenger/Messenger.h>
 #include <Logger/Logger.h>
+#include <rom/rtc.h>
+#include <esp_log.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -14,6 +16,7 @@ bool criticalWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
 bool offlineWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
 bool moistureLow[NUMBER_OF_PLANTS] = {0};
 bool moistureCritical[NUMBER_OF_PLANTS]= {0};
+
 time_t lastTimeDataReceived[NUMBER_OF_PLANTS] = {0};
 time_t lastTimeoutCheck = 0;
 
@@ -24,17 +27,26 @@ void blink(int ,int);
 
 Messenger messenger;
 Logger logger(plantNames);
+static const char* TAG = "main";
 
 void setup() {
+    //set ESP logging to log to file (and still print as well)
+    esp_log_set_vprintf(logger.logError);
+    ESP_LOGE(TAG, "test %i", 1);
     Serial.begin(115200);    
     // Initialization
     parasite.begin();
     logger.begin();
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
+    //create scanning task
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
     connectToWifiAndGetDST();
-    messenger.sendOnlineMessage(parasite.data);    
+    //find out and log reason for restart
+    int resetCauseCore1 =  rtc_get_reset_reason(0);
+    int resetCauseCore2 = rtc_get_reset_reason(1);
+    logger.logError(String(String("REBOOT, cause 1: ") + String(resetCauseCore1) + String(" cause 2: ") + String(resetCauseCore2)).c_str());
+    messenger.sendOnlineMessage(parasite.data);
 }
 
 void loop() {
@@ -176,14 +188,15 @@ void loop() {
 
 void parasiteReadingTask(void *pvParameters) {
   while (1) {
-    int delayTime = 1000;
+    //time that is maximally spent between scans/loop runs
+    int cycleTime = 1000;
     parasite.resetData(); // Set sensor data invalid
     parasite.getData(5); // get sensor data (run BLE scan for 5 seconds)
     // makes a copy of each sensor reading under mutex protection
     for (int i=0; i < NUMBER_OF_PLANTS; i++){
       bool dataSaved = false;
       if(mutex != NULL){
-        while(!dataSaved && delayTime >= 100){
+        while(!dataSaved && cycleTime >= 100){
           //try to get mutex to write data
           if (xSemaphoreTake(mutex, (TickType_t)10)==pdTRUE) {
             //only update data (including the validity) if temperature, soil moisture or humidity have changed
@@ -198,7 +211,7 @@ void parasiteReadingTask(void *pvParameters) {
           }else{
             //if mutex fails try again in 10ms
             delay(10);
-            delayTime -= 10;
+            cycleTime -= 10;
           }
         }        
       } else{
@@ -206,7 +219,7 @@ void parasiteReadingTask(void *pvParameters) {
       }
     } 
     parasite.clearScanResults(); // clear results from BLEScan buffer to release memory
-    vTaskDelay(delayTime / portTICK_PERIOD_MS);
+    vTaskDelay(cycleTime / portTICK_PERIOD_MS);
   }
 }
 
