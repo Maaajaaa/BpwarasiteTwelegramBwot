@@ -3,6 +3,11 @@
 #include <Logger/Logger.h>
 #include <rom/rtc.h>
 #include <esp_log.h>
+#include <esp32-hal-log.h>
+
+#include <nimble/hci_common.h>
+
+#define LED_BUILTIN 22
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -25,14 +30,23 @@ void connectToWifiAndGetDST();
 void parasiteReadingTask(void *pvParameters);
 void blink(int ,int);
 
-Messenger messenger;
+Messenger messenger(plantNames);
 Logger logger(plantNames);
-static const char* TAG = "main";
+static const char* TAG2 = "main";
 
+int telegramUpdateFailures = 0;
+
+extern "C" void app_main(){
+  setup();
+  while(1){
+    loop();
+  }
+}
 void setup() {
     //set ESP logging to log to file (and still print as well)
     esp_log_set_vprintf(logger.logError);
-    ESP_LOGE(TAG, "test %i", 1);
+    //find out and log reason for restart
+    ESP_LOGE(TAG2, "ERROR\n\nREBOOT, cause 1: %i cause 2 %i", rtc_get_reset_reason(0), rtc_get_reset_reason(1));
     Serial.begin(115200);    
     // Initialization
     parasite.begin();
@@ -40,12 +54,8 @@ void setup() {
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     //create scanning task
-    xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
+    //xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
     connectToWifiAndGetDST();
-    //find out and log reason for restart
-    int resetCauseCore1 =  rtc_get_reset_reason(0);
-    int resetCauseCore2 = rtc_get_reset_reason(1);
-    logger.logError(String(String("REBOOT, cause 1: ") + String(resetCauseCore1) + String(" cause 2: ") + String(resetCauseCore2)).c_str());
     messenger.sendOnlineMessage(parasite.data);
 }
 
@@ -161,7 +171,17 @@ void loop() {
       }
     }
 
-    messenger.handleUpdates(parasite.data, lastTimeDataReceived, logger.getLogFileNames());
+    if(messenger.handleUpdates(parasite.data, lastTimeDataReceived, logger.getLogFileNames()) == -1){
+      telegramUpdateFailures++;
+      if(telegramUpdateFailures > 50){
+        ESP_LOGE(TAG, "[ERROR] no connection to Telegram since %i tries, reconnecting WiFi", telegramUpdateFailures);
+       // WiFi.disconnect();
+        //connectToWifiAndGetDST(); 
+        telegramUpdateFailures = -50; 
+      }
+    }else{
+      telegramUpdateFailures = 0;
+    }
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
