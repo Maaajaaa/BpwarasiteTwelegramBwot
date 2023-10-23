@@ -25,9 +25,9 @@ void connectToWifiAndGetDST();
 void parasiteReadingTask(void *pvParameters);
 void blink(int ,int);
 
-Messenger messenger;
+Messenger messenger(plantNames);
 Logger logger(plantNames);
-static const char* TAG = "main";
+//static const char* TAG = "main";
 
 void setup() {
     //set ESP logging to log to file (and still print as well)
