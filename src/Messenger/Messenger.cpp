@@ -1,7 +1,12 @@
 #include <Messenger/Messenger.h>
 
-Messenger::Messenger(){
-    secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+static std::string colourMois = std::string("#fbff05");
+static std::string colourHumi = std::string("#ff05ff");
+static std::string colourTemp = std::string("#05b8ff");
+
+Messenger::Messenger(std::vector<std::string> lPlantNames){
+  localPlantNames = lPlantNames;
+  secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 }
 
 void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
@@ -88,12 +93,18 @@ void Messenger::serialDebug(bool messageSent, String typeOfMessage){
     }
 }
 
-void Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames){
+int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames){
     //Handle Bot Updates
-    if(bot.getUpdates(bot.last_message_received + 1))
+    int numUpdates = bot.getUpdates(bot.last_message_received + 1);
+    if(numUpdates > 0)
     {
       Serial.println("got response");
       handleNewMessages(1, parasiteData, lastTimeDataReceived, logFileNames);
+      return 1;
+    }else if(numUpdates == -1){
+      //empty response string meaning some kind of connection issue
+      //we return the binary result of the ping to see what's up exactly
+      return -1;
     }
 }
 void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames)
@@ -120,7 +131,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
           html += chartSVGFirstBlock(840, 300, 50);
           Serial.println("first block passed");
-          html += chartSVGGraph(std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60);
+          html += chartSVGGraph(std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60, std::string(localPlantNames.at(j)));
           html += String("</body></html>");
           File file = SPIFFS.open("/tmp.html", FILE_WRITE);
           if(!file){
@@ -149,8 +160,8 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
       }
       else{
         String message = bot.messages[i].text;
-        message += "WiFi signal strength: ";
-        message += WiFi.RSSI();
+        message += "\nWiFi signal strength: ";
+        message += WiFi.RSSI() ;
         for(int j = 0; j < NUMBER_OF_PLANTS; j++){
             message += "\n\n*";
             message += parasiteData[j].name.c_str();
@@ -179,7 +190,7 @@ bool Messenger::ping(){
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
 }
 
-String Messenger::chartSVGGraph(std::string filename, long timeframe){
+String Messenger::chartSVGGraph(std::string filename, long timeframe, std::string title){
   if(!SPIFFS.begin()){
       return String("SPIFFS formating and mount Failed");
   }
@@ -309,23 +320,22 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
   double y_scale_temp = (float) height / (tempMax - tempMin);
   float y_translate_temp = -1.0*tempMax*y_scale_temp+padding+height;
 
-  int maxPercent = max(moisMax, humiMax);
-  int minPercent = min(moisMin, humiMin);
+  float y_scale_humi = (float) height / (humiMax - humiMin);
+  float y_translate_humi = -1.0*humiMax*y_scale_humi+padding+height;
+
+  float y_scale_mois = (float) height / (moisMax - moisMin);
+  float y_translate_mois = -1.0*moisMax*y_scale_mois+padding+height;
+
+  moisLine += std::string("\" stroke=\"") + colourMois + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2.0\"  vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
+  moisLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_mois) + std::string("), scale(") + std::to_string(x_scale) +
+    std::string(",") + std::to_string(y_scale_mois) + std::string(")\"/>");
 
 
-  float y_scale_perc = (float) height / (maxPercent - minPercent);
-  float y_translate_perc = -1.0*maxPercent*y_scale_perc+padding+height;
+  humiLine += std::string("\" stroke=\"") + colourHumi + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2.0\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
+  humiLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_humi) + std::string("), scale(") + std::to_string(x_scale) +
+    std::string(",") + std::to_string(y_scale_humi) + std::string(")\"/>");
 
-  moisLine += std::string("\" stroke=\"#8ff0a4\" stroke-linejoin=\"round\" stroke-width=\"2.0\"  vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
-  moisLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_perc) + std::string("), scale(") + std::to_string(x_scale) +
-    std::string(",") + std::to_string(y_scale_perc) + std::string(")\"/>");
-
-
-  humiLine += std::string("\" stroke=\"#51CE44\" stroke-linejoin=\"round\" stroke-width=\"2.0\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
-  humiLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_perc) + std::string("), scale(") + std::to_string(x_scale) +
-    std::string(",") + std::to_string(y_scale_perc) + std::string(")\"/>");
-
-  tempLine += std::string("\" stroke=\"#56BDB6\" stroke-linejoin=\"round\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
+  tempLine += std::string("\" stroke=\"") + colourTemp + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
   tempLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_temp) + std::string("), scale(") + std::to_string(x_scale) +
     std::string(",") + std::to_string(y_scale_temp) + std::string(")\"/>");
 
@@ -354,7 +364,7 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe){
   Serial.print(humiMin);
   Serial.println(" -->");
 
-  return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(840,300, 50, tempMin/100.0, tempMax/100.0, minPercent/100.0, maxPercent/100.0, (unsigned long)minTime, (unsigned long)maxTime, "test2");
+  return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(840,300, 50, tempMin/100.0, tempMax/100.0, moisMin/100.0, moisMax/100.0, humiMin/100.0, humiMax/100.0, (unsigned long)minTime, (unsigned long)maxTime, title);
 }
 
 long Messenger::getCellOfLine(std::string line, int column){
@@ -380,8 +390,8 @@ long Messenger::getCellOfLine(std::string line, int column){
 /// @param height height of the chart
 /// @param padding padding on all sides
 /// @return svg as String
-String Messenger::chartSVGLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minPercent, float maxPercent, unsigned long minTime, unsigned long maxTime, String title){
-  return chartSVGFirstAndLastBlock(width, height, padding, minTemp, maxTemp, minPercent, maxPercent, minTime, maxTime, title, true);
+String Messenger::chartSVGLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minMoisture, float maxMoisture, float minHumidity, float maxHumidity, unsigned long minTime, unsigned long maxTime, std::string title, bool lastBlock){
+  return chartSVGFirstAndLastBlock(width, height, padding, minTemp, maxTemp, minMoisture, maxMoisture, minHumidity, maxHumidity, minTime, maxTime, title, true);
 }
 
 /// @brief generates the first section of the svg, meaning the diagram background with lines and such, but no text
@@ -390,7 +400,7 @@ String Messenger::chartSVGLastBlock(int width, int height, int padding, float mi
 /// @param padding padding on all sides
 /// @return svg as String
 String Messenger::chartSVGFirstBlock(int width, int height, int padding){
-  return chartSVGFirstAndLastBlock(width, height, padding, 0, 0, 0, 0, 0, 0, String(""), false);
+  return chartSVGFirstAndLastBlock(width, height, padding, 0, 0, 0, 0, 0, 0, 0, 0, std::string(""), false);
 }
 
 /// @brief generates the first section of the svg, meaning the diagram background with lines and such. It is also reused to generate the labels as the coordinates are very similar to the ticks and lines
@@ -399,13 +409,13 @@ String Messenger::chartSVGFirstBlock(int width, int height, int padding){
 /// @param padding padding on all sides
 /// @param minTemp highest temperature on the scale
 /// @param maxTemp lowest Temperature on the scale
-/// @param minPercent lowest percentage on the scale
-/// @param maxPercent highest percentage on the scale
+/// @param minMoisture lowest percentage on the scale
+/// @param maxMoisture highest percentage on the scale
 /// @param minTime lower end of the x axis
 /// @param maxTime higher end of the x axis
 /// @param title title of the chart
 /// @return svg as String
-String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minPercent, float maxPercent, unsigned long minTime, unsigned long maxTime, String title, bool lastBlock = false){
+String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minMoisture, float maxMoisture, float minHumidity, float maxHumidity, unsigned long minTime, unsigned long maxTime, std::string title, bool lastBlock){
   std::string space = std::string(" ");
   
   std::string svg = std::string("");
@@ -430,14 +440,18 @@ String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, 
     
     if(lastBlock){
 
-      //left label
+      //left labels
       svg += std::string("\n<text x=\"") + std::to_string(padding-font_padding) + std::string("\" y=\"") +  std::to_string(offset_y) + 
-        std::string("\" dominant-baseline=\"middle\" text-anchor=\"end\" font-size=\"12\" fill=\"#E6FCFB\" font-weight=\"bold\" >") + 
-        std::string(String(maxPercent - i* (maxPercent-minPercent)/horizontalLines,1).c_str()) + std::string("%</text>");
+        std::string("\" dominant-baseline=\"text-after-edge\" text-anchor=\"end\" font-size=\"12\" fill=\"") + colourMois + std::string("\" font-weight=\"bold\" >") + 
+        std::string(String(maxMoisture - i* (maxMoisture-minMoisture)/horizontalLines,1).c_str()) + std::string("%</text>");
+
+      svg += std::string("\n<text x=\"") + std::to_string(padding-font_padding) + std::string("\" y=\"") +  std::to_string(offset_y) + 
+        std::string("\" dominant-baseline=\"text-before-edge\" text-anchor=\"end\" font-size=\"12\" fill=\"") + colourHumi + std::string("\" font-weight=\"bold\" >") + 
+        std::string(String(maxHumidity - i* (maxHumidity-minHumidity)/horizontalLines,1).c_str()) + std::string("%rH</text>");
       
       //right label
       svg += std::string("\n<text x=\"") + std::to_string(width + padding + font_padding) + std::string("\" y=\"") +  std::to_string(offset_y) + 
-        std::string("\" dominant-baseline=\"middle\" text-anchor=\"start\" font-size=\"12\" fill=\"#00aaff\" font-weight=\"bold\" >") + 
+        std::string("\" dominant-baseline=\"middle\" text-anchor=\"start\" font-size=\"12\" fill=\"") + colourTemp + std::string("\" font-weight=\"bold\" >") + 
         std::string(String(maxTemp - i*(maxTemp-minTemp)/horizontalLines,1).c_str()) + std::string("°C</text>");
 
     }else{
@@ -489,10 +503,10 @@ String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, 
 
     //title text
     svg+= std::string("\n\n<text x=\"50%\" y=\"20\" dominant-baseline=\"middle\" text-anchor=\"middle\" font-size=\"18\" fill=\"#FFF\" font-weight=\"700\" >") +
-      std::string(title.c_str()) + std::string("</text>");
+     title + std::string("</text>");
 
     //subtitle
-    svg+= std::string("<text x=\"50%\" y=\"40\" text-anchor=\"middle\" font-size=\"12\" font-weight=\"700\" fill=\"#8ff0a4\">Moisture<tspan fill=\"#56BDB6\"> Temperature </tspan><tspan fill=\"#51CE44\">Humidity</tspan></text>");
+    svg+= std::string("<text x=\"50%\" y=\"40\" text-anchor=\"middle\" font-size=\"12\" font-weight=\"700\" fill=\"") + colourMois + std::string("\">Soil Moisture<tspan fill=\"") + colourTemp + std::string("\"> Temperature </tspan><tspan fill=\"") + colourHumi + std::string("\">Humidity</tspan></text>");
 
     
     //svg end tag
