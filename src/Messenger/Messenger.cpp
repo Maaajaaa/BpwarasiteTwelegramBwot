@@ -106,7 +106,9 @@ int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t 
       //we return the binary result of the ping to see what's up exactly
       return -1;
     }
+    return 0;
 }
+
 void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames)
 {
   for (int i = 0; i < numNewMessages; i++)
