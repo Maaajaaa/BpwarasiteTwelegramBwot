@@ -72,6 +72,7 @@ std::vector<std::string> Logger::getLogFileNames()
 
 int Logger::logError(const char *logtext, va_list args)
 {
+    Serial.println("logging to file");
     logError(logtext);
     //still write to stdout
     return vprintf(logtext, args);

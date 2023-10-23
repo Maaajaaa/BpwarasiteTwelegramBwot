@@ -6,7 +6,7 @@
 #include <numeric> 
 #include <WiFi.h>
 
-
+#define TAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
 
 #define MAJA_conf 1
@@ -19,6 +19,8 @@
     #define HOSTNAME "Plantbase One"
     #define WIFI_SSID "***REMOVED***"
     #define WIFI_PASSWORD "***REMOVED***"
+    //#define WIFI_SSID "Redmi"
+    //#define WIFI_PASSWORD "***REMOVED***"
     // Telegram BOT Token (Get from Botfather)
     #define BOT_TOKEN "***REMOVED***" // Maja Bot
     #define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
