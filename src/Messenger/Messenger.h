@@ -21,7 +21,7 @@ class Messenger{
         bool ping();
         String chartSVGFirstBlock(int width, int height, int padding);
         String chartSVGLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minMoisture, float maxMoisture, float minHumidity, float maxHumidity, unsigned long minTime, unsigned long maxTime, std::string title, bool lastBlock = false);
-        String chartSVGGraph(std::string filename, long timeframe, std::string title);
+        String chartSVGGraph(int, int, int, std::string filename, long timeframe, std::string title);
 
     private:
         long getCellOfLine(std::string line, int column);

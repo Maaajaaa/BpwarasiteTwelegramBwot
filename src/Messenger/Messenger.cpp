@@ -131,10 +131,11 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           unsigned long startTime = millis();
           Serial.println(ESP.getFreeHeap());
           String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
-          html += chartSVGFirstBlock(840, 300, 50);
+          html += chartSVGFirstBlock(840, 300, 60);
           Serial.println("first block passed");
-          html += chartSVGGraph(std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60, std::string(localPlantNames.at(j)));
+          html += chartSVGGraph(840, 300, 60, std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60, std::string(localPlantNames.at(j)));
           html += String("</body></html>");
+          Serial.println("writing html to file");
           File file = SPIFFS.open("/tmp.html", FILE_WRITE);
           if(!file){
             Serial.println("- failed to open file for writing");
@@ -192,7 +193,7 @@ bool Messenger::ping(){
     return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
 }
 
-String Messenger::chartSVGGraph(std::string filename, long timeframe, std::string title){
+String Messenger::chartSVGGraph(int width, int height, int padding, std::string filename, long timeframe, std::string title){
   if(!SPIFFS.begin()){
       return String("SPIFFS formating and mount Failed");
   }
@@ -249,16 +250,12 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe, std::strin
     //sanity check of time, if it's completely off we'll not use this dataset for plotting and keep going
     // if time is after 01.01.2023 and there's at least 3 ; in this line of the file
     if(time  > 1672613192){
-      //stop the diagram early if we jump for over 24h as this is probably useless to plot
-      if(maxTime-time > 24*60*60){
-        break;
-      }
       int mois = getCellOfLine(line, 1);
       int temp = getCellOfLine(line, 2);
       int humi = getCellOfLine(line, 3);
 
-      //SET MAX MIN
-      if(lineNumber == 0){
+      //SET MAX MIN if it hasn't been set yet
+      if(maxTime == 0){
         maxTime = time;
         minTime = time;
 
@@ -314,31 +311,29 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe, std::strin
     lineNumber++;
   }
   //close tag
-  int length = 840;
-  int height = 300;
-  int padding = 50;
-  float x_scale =  (float) length / (maxTime - minTime);
+  float x_scale =  -1.0 * ( (float) width / (maxTime - minTime) );
+  float x_translation = padding + width;
 
-  double y_scale_temp = (float) height / (tempMax - tempMin);
-  float y_translate_temp = -1.0*tempMax*y_scale_temp+padding+height;
+  double y_scale_temp = -1.0 * ( (float) height / (tempMax - tempMin) );
+  float y_translate_temp =  -1.0*tempMax*y_scale_temp+padding;
 
-  float y_scale_humi = (float) height / (humiMax - humiMin);
-  float y_translate_humi = -1.0*humiMax*y_scale_humi+padding+height;
+  float y_scale_humi = -1.0 * ( (float) height / (humiMax - humiMin));
+  float y_translate_humi = -1.0*humiMax*y_scale_humi+padding;
 
-  float y_scale_mois = (float) height / (moisMax - moisMin);
-  float y_translate_mois = -1.0*moisMax*y_scale_mois+padding+height;
+  float y_scale_mois =  -1.0 * ( (float) height / (moisMax - moisMin));
+  float y_translate_mois = -1.0*moisMax*y_scale_mois+padding;
 
   moisLine += std::string("\" stroke=\"") + colourMois + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2.0\"  vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
-  moisLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_mois) + std::string("), scale(") + std::to_string(x_scale) +
+  moisLine += std::string("transform=\"translate(") + std::to_string(x_translation) +std::string(",") + std::to_string(y_translate_mois) + std::string("), scale(") + std::to_string(x_scale) +
     std::string(",") + std::to_string(y_scale_mois) + std::string(")\"/>");
 
 
   humiLine += std::string("\" stroke=\"") + colourHumi + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2.0\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
-  humiLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_humi) + std::string("), scale(") + std::to_string(x_scale) +
+  humiLine += std::string("transform=\"translate(") + std::to_string(x_translation) +std::string(",") + std::to_string(y_translate_humi) + std::string("), scale(") + std::to_string(x_scale) +
     std::string(",") + std::to_string(y_scale_humi) + std::string(")\"/>");
 
   tempLine += std::string("\" stroke=\"") + colourTemp + std::string("\" stroke-linejoin=\"round\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" fill=\"none\" ");
-  tempLine += std::string("transform=\"translate(") + std::to_string(padding) +std::string(",") + std::to_string(y_translate_temp) + std::string("), scale(") + std::to_string(x_scale) +
+  tempLine += std::string("transform=\"translate(") + std::to_string(x_translation) +std::string(",") + std::to_string(y_translate_temp) + std::string("), scale(") + std::to_string(x_scale) +
     std::string(",") + std::to_string(y_scale_temp) + std::string(")\"/>");
 
   //print max/min
@@ -366,7 +361,7 @@ String Messenger::chartSVGGraph(std::string filename, long timeframe, std::strin
   Serial.print(humiMin);
   Serial.println(" -->");
 
-  return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(840,300, 50, tempMin/100.0, tempMax/100.0, moisMin/100.0, moisMax/100.0, humiMin/100.0, humiMax/100.0, (unsigned long)minTime, (unsigned long)maxTime, title);
+  return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(width,height, padding, tempMin/100.0, tempMax/100.0, moisMin/100.0, moisMax/100.0, humiMin/100.0, humiMax/100.0, (unsigned long)minTime, (unsigned long)maxTime, title);
 }
 
 long Messenger::getCellOfLine(std::string line, int column){
@@ -476,7 +471,7 @@ String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, 
         if(lastBlock){
           
           //time print as per https://stackoverflow.com/a/16358264
-          time_t currentTime = round(maxTime + j* (float) (maxTime - minTime)/ (float) verticalTicks);
+          time_t currentTime = round(minTime + j* (float) (maxTime - minTime)/ (float) (verticalTicks-1));
           struct tm * timeinfo;
           char hours[6];
           char day[11];
