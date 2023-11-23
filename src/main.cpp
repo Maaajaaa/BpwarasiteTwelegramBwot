@@ -1,8 +1,20 @@
 #include <Arduino.h>
-#include <Messenger/Messenger.h>
-#include <Logger/Logger.h>
 #include <rom/rtc.h>
 #include <esp_log.h>
+#include "esp32-hal-log.h" 
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+
+#include <numeric> 
+#include <WiFi.h>
+
+#include "BParasite.h"
+
+//log all my code with high verbosity, except BParasite 
+//because there's too much Bluetooth stuff happening at any moment
+#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+#include <Messenger/Messenger.h>
+#include <Logger/Logger.h>
 
 const int scanTime = 5; // BLE scan time in seconds
 
@@ -30,23 +42,32 @@ Logger logger(plantNames);
 //static const char* TAG = "main";
 
 void setup() {
+    Serial.begin(115200);    
+    //initialize the logger first so we can first and foremost log (even if the time might be wrong for now)
+    logger.begin();
+
     //set ESP logging to log to file (and still print as well)
     esp_log_set_vprintf(logger.logError);
-    ESP_LOGE(TAG, "test %i", 1);
-    Serial.begin(115200);    
+
+    //let's just log this, yes the time will be near 0 but we might be able to detect bootloops
+
+    //find out and log reason for restart
+    int resetCauseCore1 =  rtc_get_reset_reason(0);
+    int resetCauseCore2 = rtc_get_reset_reason(1);
+    ESP_LOGD(TAG,"REBOOT, cause core1: %i   cause core2:%i", resetCauseCore1, resetCauseCore2);
+
+
+    //now let's connect to WiFi to get the time
+    connectToWifiAndGetDST();
+    //only now it really makes sense to start reading from our sensor(s)
     // Initialization
     parasite.begin();
-    logger.begin();
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     //create scanning task
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
-    connectToWifiAndGetDST();
-    //find out and log reason for restart
-    int resetCauseCore1 =  rtc_get_reset_reason(0);
-    int resetCauseCore2 = rtc_get_reset_reason(1);
-    logger.logError(String(String("REBOOT, cause 1: ") + String(resetCauseCore1) + String(" cause 2: ") + String(resetCauseCore2)).c_str());
     messenger.sendOnlineMessage(parasite.data);
+    ESP_LOGD(TAG, "online message sent");
 }
 
 void loop() {
@@ -252,6 +273,7 @@ void connectToWifiAndGetDST(){
   }
   Serial.print("\nWiFi connected. IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.println(WiFi.BSSIDstr());
   Serial.print("Retrieving time: ");
   configTime(0, 3600, "time1.google.com"); // get UTC time via NTP
   time_t now = time(nullptr);

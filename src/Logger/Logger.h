@@ -27,10 +27,11 @@ class Logger{
         bool logData(int sensor_id, BParasite_Data_S data, time_t time);
         std::vector<std::string> getLogFileNames();
         static int logError(const char *logtext, va_list args);
-        static int logError(const char *logtext);
+        static int logErrorToFile(char *logtext);
     private:
         static int writeFile(const char * path, const char * message, const char * mode= FILE_WRITE);
         static int appendFile(const char * path, const char * message);
+        void printFileSizeAndName(std::string filenamepath);
 
         bool successfulStart;
         std::vector<std::string> logFileNames;

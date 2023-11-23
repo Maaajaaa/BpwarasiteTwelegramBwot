@@ -9,6 +9,11 @@ Logger::Logger(std::vector<std::string> localPlantNames){
 }
 
 bool Logger::begin(){
+    //set log levels
+    esp_log_level_set("*", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
+    esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
+    esp_log_level_set("dhcpc", ESP_LOG_DEBUG);     // enable WARN logs from DHCP client
+    esp_log_level_set(TAG, ESP_LOG_DEBUG);     // enable debug logs from majaStuff
     if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
         Serial.println("SPIFFS formating and mount Failed");
         return false;
@@ -28,20 +33,25 @@ bool Logger::begin(){
             #endif
             headerString += "\n";
             writeFile(logFileNames.at(i).c_str(), headerString.c_str());
-            File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_READ);
-            Serial.print("Log File ");
-            Serial.print(file.name());
-            Serial.print(" created, size: ");
-            Serial.println(file.size());
-            file.close();
+            printFileSizeAndName(logFileNames.at(i));
         }else{
-            File file = SPIFFS.open(logFileNames.at(i).c_str(), FILE_READ);
-            Serial.print("Log File exists, size: ");
-            Serial.println(file.size());
-            file.close();
+            printFileSizeAndName(logFileNames.at(i));
         }
     }
+    if(!SPIFFS.exists(ERROR_LOG_FILE)){
+        //create empty log file
+        writeFile(ERROR_LOG_FILE, "ESP32 log file\n");
+        printFileSizeAndName(ERROR_LOG_FILE);
+    }
     return true;
+}
+
+void Logger::printFileSizeAndName(std::string filenamepath){
+    File file = SPIFFS.open(filenamepath.c_str(), FILE_READ);
+    Serial.print(filenamepath.c_str());
+    Serial.print(" exists, size: ");
+    Serial.println(file.size());
+    file.close();
 }
 
 bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
@@ -73,14 +83,21 @@ std::vector<std::string> Logger::getLogFileNames()
 int Logger::logError(const char *logtext, va_list args)
 {
     Serial.println("logging to file");
-    logError(logtext);
+    char* string;
+    int retVal = vasprintf(&string, logtext, args);
+    logErrorToFile(string);
+    Serial.println(string);
+    Serial.println(retVal);
     //still write to stdout
     return vprintf(logtext, args);
 }
 
-int Logger::logError(const char *logtext)
+int Logger::logErrorToFile(char *logtext)
 {
-    return appendFile(ERROR_LOG_FILE, logtext);
+    std::string logLine =  std::string("[") 
+        + std::to_string(time(nullptr)) + std::string("] ") 
+        + std::string(logtext) + std::string("\n");
+    return appendFile(ERROR_LOG_FILE, logLine.c_str());
 }
 int Logger::writeFile(const char *filepath, const char *data, const char *mode)
 {

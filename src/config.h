@@ -1,20 +1,17 @@
-#include "BParasite.h"
-#include "esp32-hal-log.h" 
-#include <WiFiClientSecure.h>
-#include <UniversalTelegramBot.h>
-
-#include <numeric> 
-#include <WiFi.h>
 
 #define TAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
 
 #define MAJA_conf 1
 //#define ***REMOVED***_conf 1
+#define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL_ERROR 1
+#define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL 1
+#define CONFIG_ARDUHAL_ESP_LOG 1
+
 
 #ifdef MAJA_conf
     #define NUMBER_OF_PLANTS 3
-    #define plantNames {"avocado", "Maja's ivy", "terrarium ivy"}
+    #define plantNames {"avocados", "Maja's ivy", "terrarium ivy"}
     #define knownBLEAddresses {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17", "E2:37:24:4E:DA:FA"}
     #define HOSTNAME "Plantbase One"
     #define WIFI_SSID "***REMOVED***"
