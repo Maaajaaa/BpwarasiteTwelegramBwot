@@ -1,5 +1,4 @@
 #include <Messenger/Messenger.h>
-
 static std::string colourMois = std::string("#fbff05");
 static std::string colourHumi = std::string("#ff05ff");
 static std::string colourTemp = std::string("#05b8ff");
@@ -24,7 +23,12 @@ void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
     //markdownv2 requires escape of . characters, so v1 is used for simplicity
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    debug(sent, "offline entwarning", "this device");
+    debug(sent, "online message", "this device");
+    String data="test\nHello world\n";
+    sent = bot.sendMultipartFormDataToTelegramByString("sendDocument", "document", "test.txt", "document/txt", CHAT_ID, data);
+    debug(sent, "offline document test", "this device");
+    Serial.print("test did");
+    Serial.println(sent);
 }
 
 //returns 1 if message was sent successfully
@@ -85,9 +89,9 @@ bool Messenger::sendOfflineWarning(int minutesOffline, BParasite_Data_S parasite
 
 void Messenger::debug(bool messageSent, String typeOfMessage, std::string plantName){
     if(!messageSent){
-        ESP_LOGE(lTag, "FAILED to send %s message for %s", typeOfMessage.c_str(), plantName.c_str());
+        ESP_LOGE(TAG, "FAILED to send %s message for %s", typeOfMessage.c_str(), plantName.c_str());
     }else{        
-        ESP_LOGI(lTag, "sent %s message for %s", typeOfMessage.c_str(), plantName.c_str());
+        ESP_LOGD(TAG, "sent %s message for %s", typeOfMessage.c_str(), plantName.c_str());
     }
 }
 
@@ -153,6 +157,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
 
           std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
           file = SPIFFS.open("/tmp.html");
+          bot.sendChatAction(bot.messages[i].chat_id, "UPLOAD_DOCUMENT");
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
           debug(sent, "graph file", logFileNames.at(j));
           bot.sendMessage(bot.messages[i].chat_id, String(String(endTimeTime-startTime) + String("ms")));
@@ -341,8 +346,8 @@ String Messenger::chartSVGGraph(int width, int height, int padding, std::string 
     std::string(",") + std::to_string(y_scale_temp) + std::string(")\"/>");
 
   //log max/min
-  ESP_LOGD("SVG Generator", "time (max/min): %i/%i; mois (max/min), %i/%i; temp(max/min/range): %i/%i/%d; humi(max/min) %i/%i",
-    maxTime, minTime, moisMax, moisMin, tempMax, tempMin, (tempMax/100.0 - tempMin/100.0), humiMax, humiMin);
+  ESP_LOGD("SVG Generator", "time (max/min): %i/%i; mois (max/min), %i/%i; temp(max/min/range): %i/%i/%d; humi(max/min) %i/%i; skipped lines: %i",
+    maxTime, minTime, moisMax, moisMin, tempMax, tempMin, (tempMax/100.0 - tempMin/100.0), humiMax, humiMin, skippedLines);
 
   return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(width,height, padding, tempMin/100.0, tempMax/100.0, moisMin/100.0, moisMax/100.0, humiMin/100.0, humiMax/100.0, (unsigned long)minTime, (unsigned long)maxTime, title);
 }
