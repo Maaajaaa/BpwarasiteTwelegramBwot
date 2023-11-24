@@ -27,7 +27,7 @@ class Messenger{
         long getCellOfLine(std::string line, int column);
         String chartSVGFirstAndLastBlock(int width, int height, int padding, float minTemp, float maxTemp, float minMoisture, float maxMoisture, float minHumidity, float maxHumidity, unsigned long minTime, unsigned long maxTime, std::string title, bool lastBlock = false);
         void handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames);
-        void serialDebug(bool messageSent, String typeOfMessage);
+        void debug(bool messageSent, String typeOfMessage, std::string plantName);
         WiFiClientSecure secured_client;
         UniversalTelegramBot bot = UniversalTelegramBot(BOT_TOKEN, secured_client);
         std::vector<std::string> localPlantNames;

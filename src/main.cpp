@@ -67,7 +67,6 @@ void setup() {
     //create scanning task
     xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
     messenger.sendOnlineMessage(parasite.data);
-    ESP_LOGD(TAG, "online message sent");
 }
 
 void loop() {

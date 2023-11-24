@@ -4,6 +4,8 @@ static std::string colourMois = std::string("#fbff05");
 static std::string colourHumi = std::string("#ff05ff");
 static std::string colourTemp = std::string("#05b8ff");
 
+static const char *lTag = "b-Messenger";
+
 Messenger::Messenger(std::vector<std::string> lPlantNames){
   localPlantNames = lPlantNames;
   secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
@@ -21,9 +23,8 @@ void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     }
     message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
     //markdownv2 requires escape of . characters, so v1 is used for simplicity
-    if(!bot.sendMessage(CHAT_ID, message, "Markdown")){
-      Serial.println("SENDING MESSAGE FAILED");
-    };
+    bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    debug(sent, "offline entwarning", "this device");
 }
 
 //returns 1 if message was sent successfully
@@ -34,7 +35,7 @@ bool Messenger::sendOfflineEntwarnung(BParasite_Data_S parasiteData){
     message += parasiteData.rssi;
     message += " dBm";
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offline entwarning");
+    debug(sent, "offline entwarning", parasiteData.name);
     return sent;
 }
 
@@ -45,7 +46,7 @@ bool Messenger::sendCriticallyLowMessage(BParasite_Data_S parasiteData){
     message += parasiteData.soil_moisture/100.0;
     message += "%";
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "ciritcally low");
+    debug(sent, "ciritcally low", parasiteData.name);
     return sent;
 }
 
@@ -56,7 +57,7 @@ bool Messenger::sendLowMessage(BParasite_Data_S parasiteData){
     message += parasiteData.soil_moisture/100.0;
     message += "% \xF0\x9F\x9A\xB1";
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "low");
+    debug(sent, "low", parasiteData.name);
     return sent;
 }
 
@@ -67,7 +68,7 @@ bool Messenger::sendThankYouMessage(BParasite_Data_S parasiteData){
     message += parasiteData.soil_moisture/100.0;
     message += "% \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 \xF0\x9F\x90\xB3 _happy panting_";
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "thank you");
+    debug(sent, "thank you", parasiteData.name);
     return sent;
 }
 
@@ -78,18 +79,15 @@ bool Messenger::sendOfflineWarning(int minutesOffline, BParasite_Data_S parasite
     message += minutesOffline;
     message += " minutes! \xf0\x9f\xa7\x90";
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
-    if(MESSENGER_SERIAL_DEBUG) serialDebug(sent, "offline warning");
+    debug(sent, "offline warning", parasiteData.name);
     return sent;
 }
 
-void Messenger::serialDebug(bool messageSent, String typeOfMessage){
+void Messenger::debug(bool messageSent, String typeOfMessage, std::string plantName){
     if(!messageSent){
-        Serial.print("SENDING of "); 
-        Serial.print(typeOfMessage); 
-        Serial.println(" message FAILED"); 
-    }else{
-        Serial.print(typeOfMessage); 
-        Serial.println(" message sent");
+        ESP_LOGE(lTag, "FAILED to send %s message for %s", typeOfMessage.c_str(), plantName.c_str());
+    }else{        
+        ESP_LOGI(lTag, "sent %s message for %s", typeOfMessage.c_str(), plantName.c_str());
     }
 }
 
@@ -98,10 +96,11 @@ int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t 
     int numUpdates = bot.getUpdates(bot.last_message_received + 1);
     if(numUpdates > 0)
     {
-      Serial.println("got response");
+      ESP_LOGI(lTag, "processing incoming message");
       handleNewMessages(1, parasiteData, lastTimeDataReceived, logFileNames);
       return 1;
     }else if(numUpdates == -1){
+      ESP_LOGD(lTag, "connection issue when checking for messages");
       //empty response string meaning some kind of connection issue
       //we return the binary result of the ping to see what's up exactly
       return -1;
@@ -118,47 +117,51 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
         for(int j=0; j<logFileNames.size(); j++){
           File myFile = SPIFFS.open(logFileNames.at(j).c_str());
           if(myFile){
-            Serial.print("Sending request for: ");
-            Serial.println(logFileNames.at(j).c_str());
+            ESP_LOGD(lTag, "Sending request for: %s", logFileNames.at(j).c_str());
             std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1);
-            bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameWOSlash.c_str(), "document/csv", bot.messages[i].chat_id, myFile);
-            Serial.println("request sent");
+            bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameWOSlash.c_str(), "document/csv", bot.messages[i].chat_id, myFile);
+            debug(sent, "csv file", logFileNames.at(j).c_str());
           }
         }
       }else if(bot.messages[i].text == "graph"){
         bot.sendMessage(bot.messages[i].chat_id, String("generating graph, please wait"));
         for(int j=0; j<logFileNames.size(); j++){
+          ESP_LOGI(lTag, "generating graph for %s", localPlantNames.at(j));
           unsigned long startTime = millis();
-          Serial.println(ESP.getFreeHeap());
+          //generate html with embedded svg String
           String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
           html += chartSVGFirstBlock(840, 300, 60);
-          Serial.println("first block passed");
+          ESP_LOGD(lTag, "first SVG Block generated");
           html += chartSVGGraph(840, 300, 60, std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60, std::string(localPlantNames.at(j)));
           html += String("</body></html>");
-          Serial.println("writing html to file");
+          ESP_LOGD(lTag, "writing html to tmp.html file");
+          //dump html String into file
           File file = SPIFFS.open("/tmp.html", FILE_WRITE);
           if(!file){
-            Serial.println("- failed to open file for writing");
+            ESP_LOGE(lTag, "FAILED to open tmp.html for writing");
             return;
           }
           if(file.print(html.c_str())){
-              Serial.println("- file written");
+            ESP_LOGD(lTag, "writing to tmp.html successful");
           } else {
-              Serial.println("- write failed");
+            ESP_LOGE(lTag, "FAILED to write to tmp.html");
           }
           file.close();
           
           unsigned long endTimeTime = millis();
+          ESP_LOGD(lTag, "generating %s graph took %ims", localPlantNames.at(j), endTimeTime - startTime);
+
           std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
           file = SPIFFS.open("/tmp.html");
-          bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
+          bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
+          debug(sent, "graph file", logFileNames.at(j));
           bot.sendMessage(bot.messages[i].chat_id, String(String(endTimeTime-startTime) + String("ms")));
         }
       }else if(bot.messages[i].text == "errors"){
         for(int j=0; j<logFileNames.size(); j++){
           File file = SPIFFS.open(ERROR_LOG_FILE);
-          bot.sendMultipartFormDataToTelegram("sendDocument", "document", "error_log.txt", "document/html", bot.messages[i].chat_id, file);
-            
+          bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", "error_log.txt", "document/html", bot.messages[i].chat_id, file);
+          debug(sent, "error log", "this device");
         }
       }
       else{
@@ -180,7 +183,8 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
             message += (time(nullptr) - lastTimeDataReceived[j]) / 60;
             message += " minutes ago";
         }
-        bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
+        bool sent = bot.sendMessage(bot.messages[i].chat_id, message, "Markdown");
+        debug(sent, "status message", "all plants");
       }
     }
   }
@@ -336,30 +340,9 @@ String Messenger::chartSVGGraph(int width, int height, int padding, std::string 
   tempLine += std::string("transform=\"translate(") + std::to_string(x_translation) +std::string(",") + std::to_string(y_translate_temp) + std::string("), scale(") + std::to_string(x_scale) +
     std::string(",") + std::to_string(y_scale_temp) + std::string(")\"/>");
 
-  //print max/min
-  Serial.print("<!-- time ");
-  Serial.print(maxTime);
-  Serial.print(" ");
-  Serial.print(minTime);
-
-  Serial.print(" mois ");
-  Serial.print(moisMax);
-  Serial.print(" ");
-  Serial.print(moisMin);
-
-  Serial.print(" ");
-  Serial.print((tempMax/100.0 - tempMin/100.0));
-
-  Serial.print(" temp ");
-  Serial.print(tempMax);
-  Serial.print(" ");
-  Serial.print(tempMin);
-
-  Serial.print(" humi ");
-  Serial.print(humiMax);
-  Serial.print(" ");
-  Serial.print(humiMin);
-  Serial.println(" -->");
+  //log max/min
+  ESP_LOGD("SVG Generator", "time (max/min): %i/%i; mois (max/min), %i/%i; temp(max/min/range): %i/%i/%d; humi(max/min) %i/%i",
+    maxTime, minTime, moisMax, moisMin, tempMax, tempMin, (tempMax/100.0 - tempMin/100.0), humiMax, humiMin);
 
   return String(moisLine.c_str())  + String("\n") + String(tempLine.c_str()) + String("\n") + String(humiLine.c_str()) + String("\n") +  chartSVGLastBlock(width,height, padding, tempMin/100.0, tempMax/100.0, moisMin/100.0, moisMax/100.0, humiMin/100.0, humiMax/100.0, (unsigned long)minTime, (unsigned long)maxTime, title);
 }
