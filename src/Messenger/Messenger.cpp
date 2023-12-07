@@ -173,10 +173,12 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
         String message = bot.messages[i].text;
         message += "\nWiFi signal strength: ";
         message += WiFi.RSSI() ;
-        message += "\nFree RAM/Storage: ";
+        message += " dBm\nFree RAM/Storage: ";
         message += ESP.getFreeHeap();
         message += " bytes / ";
-        message += SPIFFS.totalBytes() - SPIFFS.usedBytes() + " bytes";
+        int tBytes = SPIFFS.totalBytes(); int uBytes = SPIFFS.usedBytes();
+        message += (tBytes - uBytes);
+        message += " bytes \n";
         for(int j = 0; j < NUMBER_OF_PLANTS; j++){
             message += "\n\n*";
             message += parasiteData[j].name.c_str();
