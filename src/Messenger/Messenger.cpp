@@ -173,6 +173,10 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
         String message = bot.messages[i].text;
         message += "\nWiFi signal strength: ";
         message += WiFi.RSSI() ;
+        message += "\nFree RAM/Storage: ";
+        message += ESP.getFreeHeap();
+        message += " bytes / ";
+        message += SPIFFS.totalBytes() - SPIFFS.usedBytes() + " bytes";
         for(int j = 0; j < NUMBER_OF_PLANTS; j++){
             message += "\n\n*";
             message += parasiteData[j].name.c_str();
@@ -199,7 +203,11 @@ bool Messenger::ping(){
     if(secured_client.connected()){
         return true;
     }
-    return secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
+    bool result = secured_client.connect(TELEGRAM_HOST, TELEGRAM_SSL_PORT);
+    if(result == 0){
+      ESP_LOGE(lTag, "connecting to Telegram at%s:%s FAILED", TELEGRAM_HOST, TELEGRAM_SSL_PORT);
+    }
+    return result;
 }
 
 String Messenger::chartSVGGraph(int width, int height, int padding, std::string filename, long timeframe, std::string title){
