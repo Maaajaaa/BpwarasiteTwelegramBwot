@@ -38,7 +38,8 @@ void parasiteReadingTask(void *pvParameters);
 void blink(int ,int);
 
 Messenger messenger(plantNames);
-Logger logger(plantNames);
+//use MAC as file name
+Logger logger(knownBLEAddresses);
 //static const char* TAG = "main";
 
 void setup() {
@@ -54,7 +55,7 @@ void setup() {
     //find out and log reason for restart
     int resetCauseCore1 =  rtc_get_reset_reason(0);
     int resetCauseCore2 = rtc_get_reset_reason(1);
-    ESP_LOGD(TAG,"REBOOT, cause core1: %i   cause core2:%i", resetCauseCore1, resetCauseCore2);
+    ESP_LOGD(myTAG,"REBOOT, cause core1: %i   cause core2:%i", resetCauseCore1, resetCauseCore2);
 
 
     //now let's connect to WiFi to get the time

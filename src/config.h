@@ -1,5 +1,5 @@
 
-#define TAG "majaStuff"
+#define myTAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
 
 #define MAJA_conf 1

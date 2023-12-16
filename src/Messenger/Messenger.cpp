@@ -165,7 +165,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
       }else if(bot.messages[i].text == "errors"){
         for(int j=0; j<logFileNames.size(); j++){
           File file = SPIFFS.open(ERROR_LOG_FILE);
-          bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", "error_log.txt", "document/html", bot.messages[i].chat_id, file);
+          bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", ERROR_LOG_FILE, "document/csv", bot.messages[i].chat_id, file);
           debug(sent, "error log", "this device");
         }
       }

@@ -13,7 +13,7 @@ bool Logger::begin(){
     esp_log_level_set("*", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
     esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
     esp_log_level_set("dhcpc", ESP_LOG_DEBUG);     // enable WARN logs from DHCP client
-    esp_log_level_set(TAG, ESP_LOG_DEBUG);     // enable debug logs from majaStuff
+    esp_log_level_set(myTAG, ESP_LOG_DEBUG);     // enable debug logs from majaStuff
     esp_log_level_set("b-Messenger", ESP_LOG_DEBUG);     // enable debug logs from b-Messenger
     
     if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
@@ -84,12 +84,15 @@ std::vector<std::string> Logger::getLogFileNames()
 
 int Logger::logError(const char *logtext, va_list args)
 {
-    Serial.println("logging to file");
+    Serial.println("\n\nlogging to file");
     char* string;
     int retVal = vasprintf(&string, logtext, args);
-    logErrorToFile(string);
-    Serial.println(string);
+    int writeResult = logErrorToFile(string);
+    Serial.print(string);
+    Serial.print(" vasprintf returned: ");
     Serial.println(retVal);
+    Serial.print("log write returned: ");
+    Serial.print(writeResult);
     //still write to stdout
     return vprintf(logtext, args);
 }
@@ -99,6 +102,9 @@ int Logger::logErrorToFile(char *logtext)
     std::string logLine =  std::string("[") 
         + std::to_string(time(nullptr)) + std::string("] ") 
         + std::string(logtext) + std::string("\n");
+    
+    Serial.print("Log text: ");
+    Serial.println(logLine.c_str());
     return appendFile(ERROR_LOG_FILE, logLine.c_str());
 }
 int Logger::writeFile(const char *filepath, const char *data, const char *mode)
@@ -108,9 +114,9 @@ int Logger::writeFile(const char *filepath, const char *data, const char *mode)
     File file = SPIFFS.open(filepath, mode);
     if(file.isDirectory())  return EISDIR;
     if(!file) return ENOENT;
-
-    if(file.print(data)){
-        Serial.println("- file written/appended");
+    if(file.println(data)){
+        Serial.print(filepath);
+        Serial.println(" written/appended");
     } else {
         return EIO;
     }
