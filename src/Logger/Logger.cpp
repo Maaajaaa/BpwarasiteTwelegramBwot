@@ -13,7 +13,7 @@ bool Logger::begin(){
     esp_log_level_set("*", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
     esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
     esp_log_level_set("dhcpc", ESP_LOG_DEBUG);     // enable WARN logs from DHCP client
-    esp_log_level_set(myTAG, ESP_LOG_DEBUG);     // enable debug logs from majaStuff
+    esp_log_level_set("majaStuff", ESP_LOG_DEBUG);     // enable debug logs from majaStuff
     esp_log_level_set("b-Messenger", ESP_LOG_DEBUG);     // enable debug logs from b-Messenger
     
     if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){

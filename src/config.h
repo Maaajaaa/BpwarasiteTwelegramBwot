@@ -10,9 +10,6 @@
 
 
 #ifdef MAJA_conf
-    #define NUMBER_OF_PLANTS 4
-    #define plantNames {"avocados", "Maja's ivy", "terrarium ivy", "avocados mirror"}
-    #define knownBLEAddresses {"EF:59:22:76:F7:EC", "D4:8C:FB:66:EA:17", "E2:37:24:4E:DA:FA", "E1:05:13:31:69:FC"}
     #define HOSTNAME "Plantbase One"
     #define WIFI_SSID "***REMOVED***"
     #define WIFI_PASSWORD "***REMOVED***"

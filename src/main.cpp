@@ -5,7 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
 
-#include <numeric> 
+#include <numeric>
 #include <WiFi.h>
 
 #include "BParasite.h"
@@ -15,21 +15,24 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include <Messenger/Messenger.h>
 #include <Logger/Logger.h>
+#include <sensorsConf.h>
 
-const int scanTime = 5; // BLE scan time in seconds
+const int scanTime = 5; // BLE scan time in seconds 
+
 
 BParasite parasite(knownBLEAddresses, plantNames);
-BParasite_Data_S parasiteData[NUMBER_OF_PLANTS];
+static const int plantNumer = knownBLEAddresses.size();
+BParasite_Data_S parasiteData[10];
 
 SemaphoreHandle_t mutex;
 
-bool warningNOTDelivered[NUMBER_OF_PLANTS]= {0};
-bool criticalWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
-bool offlineWarningNOTDelivered[NUMBER_OF_PLANTS] = {0};
-bool moistureLow[NUMBER_OF_PLANTS] = {0};
-bool moistureCritical[NUMBER_OF_PLANTS]= {0};
+std::vector<bool> warningNOTDelivered(NUMBER_OF_PLANTS);
+std::vector<bool> criticalWarningNOTDelivered(NUMBER_OF_PLANTS);
+std::vector<bool> offlineWarningNOTDelivered(NUMBER_OF_PLANTS);
+std::vector<bool> moistureLow(NUMBER_OF_PLANTS);
+std::vector<bool> moistureCritical(NUMBER_OF_PLANTS);
 
-time_t lastTimeDataReceived[NUMBER_OF_PLANTS] = {0};
+std::vector<time_t> lastTimeDataReceived(NUMBER_OF_PLANTS);
 time_t lastTimeoutCheck = 0;
 
 void handleNewMessages(int);
@@ -172,7 +175,7 @@ void loop() {
     
     for(int i=0; i<NUMBER_OF_PLANTS; i++){
       //if more than 55 minutes since last reading and no warned yet
-      if(time(nullptr) - lastTimeDataReceived[i] > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
+      if(time(nullptr) - lastTimeDataReceived.at(i) > 60*OFFLINE_WARNING_TIME && offlineWarningNOTDelivered[i]){
         //make sure internet connection is there
         //if(WiFi.status() != WL_CONNECTED)
         if(!messenger.ping()){
@@ -186,10 +189,10 @@ void loop() {
 
     //LED STUFF
     //at least one with low moisture and none with failed to send warning
-    bool mstLow  = ( std::accumulate(moistureLow, moistureLow+NUMBER_OF_PLANTS,0) >= 1);
-    bool mstCritLow = (std::accumulate(moistureCritical, moistureCritical+NUMBER_OF_PLANTS,0) >= 1);
-    bool warnNDel = (std::accumulate(warningNOTDelivered, warningNOTDelivered+NUMBER_OF_PLANTS, 0) >= 1);
-    bool critWarnNDel = (std::accumulate(criticalWarningNOTDelivered, criticalWarningNOTDelivered+NUMBER_OF_PLANTS, 0) >= 1);
+    bool mstLow  = ( std::accumulate(moistureLow.begin(), moistureLow.end(),0) >= 1);
+    bool mstCritLow = (std::accumulate(moistureCritical.begin(), moistureCritical.end(),0) >= 1);
+    bool warnNDel = (std::accumulate(warningNOTDelivered.begin(), warningNOTDelivered.end(), 0) >= 1);
+    bool critWarnNDel = (std::accumulate(criticalWarningNOTDelivered.begin(), criticalWarningNOTDelivered.end(), 0) >= 1);
     if(warnNDel || critWarnNDel){
       WiFi.disconnect();
       connectToWifiAndGetDST();

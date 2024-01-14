@@ -12,6 +12,7 @@ Messenger::Messenger(std::vector<std::string> lPlantNames){
 
 void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     String message = String("Reciever of soil moisture of ");
+    int NUMBER_OF_PLANTS = localPlantNames.size();
     for(int i = 0; i< NUMBER_OF_PLANTS; i++){
       if(i == NUMBER_OF_PLANTS -1 && i > 0){
         message += " and ";
@@ -95,7 +96,7 @@ void Messenger::debug(bool messageSent, String typeOfMessage, std::string plantN
     }
 }
 
-int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames){
+int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, std::vector<time_t> lastTimeDataReceived, std::vector<std::string> logFileNames){
     //Handle Bot Updates
     int numUpdates = bot.getUpdates(bot.last_message_received + 1);
     if(numUpdates > 0)
@@ -112,8 +113,9 @@ int Messenger::handleUpdates(std::vector<BParasite_Data_S> parasiteData, time_t 
     return 0;
 }
 
-void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, time_t lastTimeDataReceived[], std::vector<std::string> logFileNames)
+void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data_S> parasiteData, std::vector<time_t> lastTimeDataReceived, std::vector<std::string> logFileNames)
 {
+  int NUMBER_OF_PLANTS = localPlantNames.size();
   for (int i = 0; i < numNewMessages; i++)
   {
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
