@@ -22,9 +22,6 @@
 #endif
     
 #ifdef ***REMOVED***_conf
-    #define NUMBER_OF_PLANTS 1
-    #define knownBLEAddresses {"cb:1b:5f:bf:07:aa"}
-    #define plantNames {"***REMOVED***' ivy"}
     #define HOSTNAME "Plantbase Two"
     // Wifi network station credentials
     #define WIFI_SSID "***REMOVED***"
