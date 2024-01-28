@@ -129,37 +129,28 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
             debug(sent, "csv file", logFileNames.at(j).c_str());
           }
           myFile.close();
+          //send archived file too
+          myFile = SPIFFS.open(String(PATH_2) + logFileNames.at(j).c_str());
+          if(myFile){
+            ESP_LOGD(lTag, "Sending request for old: %s", logFileNames.at(j).c_str());
+            std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + "old.csv";
+            bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameWOSlash.c_str(), "document/csv", bot.messages[i].chat_id, myFile);
+            debug(sent, "csv file", myFile.path());
+          }
+          myFile.close();
         }
       }else if(bot.messages[i].text == "graph"){
         bot.sendMessage(bot.messages[i].chat_id, String("generating graph, please wait"));
         for(int j=0; j<logFileNames.size(); j++){
           ESP_LOGI(lTag, "generating graph for %s", localPlantNames.at(j));
           unsigned long startTime = millis();
-          //generate html with embedded svg String
-          String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
-          html += chartSVGFirstBlock(840, 300, 60);
-          ESP_LOGD(lTag, "first SVG Block generated");
-          html += chartSVGGraph(840, 300, 60, std::string("/spiffs") + logFileNames.at(j), 3 * 24 * 60 * 60, std::string(localPlantNames.at(j)));
-          html += String("</body></html>");
-          ESP_LOGD(lTag, "writing html to tmp.html file");
-          //dump html String into file
-          File file = SPIFFS.open("/tmp.html", FILE_WRITE);
-          if(!file){
-            ESP_LOGE(lTag, "FAILED to open tmp.html for writing");
-            return;
-          }
-          if(file.print(html.c_str())){
-            ESP_LOGD(lTag, "writing to tmp.html successful");
-          } else {
-            ESP_LOGE(lTag, "FAILED to write to tmp.html");
-          }
-          file.close();
+          generateNewTmpHtml(logFileNames.at(j), localPlantNames.at(j));
           
           unsigned long endTimeTime = millis();
           ESP_LOGD(lTag, "generating %s graph took %ims", localPlantNames.at(j), endTimeTime - startTime);
 
           std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
-          file = SPIFFS.open("/tmp.html");
+          File file = SPIFFS.open("/tmp.html");
           bot.sendChatAction(bot.messages[i].chat_id, "UPLOAD_DOCUMENT");
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
           debug(sent, "graph file", logFileNames.at(j));
@@ -169,6 +160,12 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
       }else if(bot.messages[i].text == "errors"){
           File file = SPIFFS.open(ERROR_LOG_FILE);
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", ERROR_LOG_FILE, "document/csv", bot.messages[i].chat_id, file);
+          file.close();
+          file = SPIFFS.open(String(PATH_2) + String(ERROR_LOG_FILE));
+          //send archived file too
+          if(file){
+            bot.sendMultipartFormDataToTelegram("sendDocument", "document", String(ERROR_LOG_FILE) + "_old", "document/csv", bot.messages[i].chat_id, file);
+          }
           file.close();
           debug(sent, "error log", "this device");
       }
@@ -512,4 +509,26 @@ String Messenger::chartSVGFirstAndLastBlock(int width, int height, int padding, 
   }
 
   return String(svg.c_str());
+}
+
+void Messenger::generateNewTmpHtml(std::string logFileName, std::string plantName){
+  //generate html with embedded svg String
+  String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
+  html += chartSVGFirstBlock(840, 300, 60);
+  ESP_LOGD(lTag, "first SVG Block generated");
+  html += chartSVGGraph(840, 300, 60, std::string("/spiffs") + logFileName.c_str(), 3 * 24 * 60 * 60, plantName);
+  html += String("</body></html>");
+  ESP_LOGD(lTag, "writing html to tmp.html file");
+  //dump html String into file
+  File file = SPIFFS.open("/tmp.html", FILE_WRITE);
+  if(!file){
+    ESP_LOGE(lTag, "FAILED to open tmp.html for writing");
+    return;
+  }
+  if(file.print(html.c_str())){
+    ESP_LOGD(lTag, "writing to tmp.html successful");
+  } else {
+    ESP_LOGE(lTag, "FAILED to write to tmp.html");
+  }
+  file.close();
 }

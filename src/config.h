@@ -2,7 +2,7 @@
 #define TAG "majaStuff"
 #define myTAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
-
+#define PATH_2 "/old"
 #define MAJA_conf 1
 //#define ***REMOVED***_conf 1
 #define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL_ERROR 1
@@ -11,7 +11,9 @@
 
 #define TIME_BEFORE_RECONNECT 120
 #define WIFI_CONNECTION_WAIT 5*60
-#define NO_REPEATING_ONLINE_MESSAGES 0
+
+#define LOG_FILE_LIMIT_BYTES 250 * 1000
+#define ERROR_LOG_FILE_LIMIT 25 * 1000
 
 #ifdef MAJA_conf
     #define HOSTNAME "Plantbase One"

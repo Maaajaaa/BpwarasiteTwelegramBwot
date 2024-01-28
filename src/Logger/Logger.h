@@ -35,4 +35,5 @@ class Logger{
 
         bool successfulStart;
         std::vector<std::string> logFileNames;
+        static String headerString();
 };
