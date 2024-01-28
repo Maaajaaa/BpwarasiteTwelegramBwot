@@ -1,4 +1,5 @@
 
+#define TAG "majaStuff"
 #define myTAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
 

@@ -165,13 +165,10 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           bot.sendMessage(bot.messages[i].chat_id, String(String(endTimeTime-startTime) + String("ms")));
         }
       }else if(bot.messages[i].text == "errors"){
-        ESP_LOGD(lTag, "responding to errors request");
-        File file = SPIFFS.open(ERROR_LOG_FILE);
-        if(file.available()){
+        for(int j=0; j<logFileNames.size(); j++){
+          File file = SPIFFS.open(ERROR_LOG_FILE);
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", ERROR_LOG_FILE, "document/csv", bot.messages[i].chat_id, file);
           debug(sent, "error log", "this device");
-        } else{
-          ESP_LOGE(lTag, "FAILED TO OPEN %s", ERROR_LOG_FILE);
         }
       }
       else{
