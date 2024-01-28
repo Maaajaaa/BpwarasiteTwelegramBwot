@@ -4,6 +4,7 @@
 #include "esp32-hal-log.h" 
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
+#include "ESPAsyncWebServer.h"
 
 #include <numeric>
 #include <WiFi.h>
@@ -34,6 +35,7 @@ std::vector<bool> moistureCritical(NUMBER_OF_PLANTS);
 
 std::vector<time_t> lastTimeDataReceived(NUMBER_OF_PLANTS);
 time_t lastTimeoutCheck = 0;
+bool startedTimeout = false;
 
 void handleNewMessages(int);
 void connectToWifiAndGetDST();
@@ -46,10 +48,11 @@ Logger logger(knownBLEAddresses);
 //static const char* TAG = "main";
 
 void setup() {
-    Serial.begin(115200);    
+    Serial.begin(115200);
+    //give the console some time, else we'll never see the first few seconds of messages  
+    delay(2000);
     //initialize the logger first so we can first and foremost log (even if the time might be wrong for now)
     logger.begin();
-
     //set ESP logging to log to file (and still print as well)
     esp_log_set_vprintf(logger.logError);
 
@@ -194,8 +197,18 @@ void loop() {
     bool warnNDel = (std::accumulate(warningNOTDelivered.begin(), warningNOTDelivered.end(), 0) >= 1);
     bool critWarnNDel = (std::accumulate(criticalWarningNOTDelivered.begin(), criticalWarningNOTDelivered.end(), 0) >= 1);
     if(warnNDel || critWarnNDel){
-      WiFi.disconnect();
-      connectToWifiAndGetDST();
+      //if the delivery failed we'll wait for 2 minutes (which means retries) and then reconnect wifi
+      if(!startedTimeout){
+        lastTimeoutCheck = time(nullptr);
+      }else{
+        if(time(nullptr) - lastTimeoutCheck > TIME_BEFORE_RECONNECT){
+          startedTimeout = false;
+          //give it time to reconnect so the timeout check doesn't loop
+          lastTimeoutCheck = time(nullptr) - WIFI_CONNECTION_WAIT;
+          WiFi.disconnect();
+          connectToWifiAndGetDST();
+        }
+      }
     }
     if(mstLow && !warnNDel){
       blink(200,200);
@@ -265,6 +278,7 @@ void connectToWifiAndGetDST(){
   Serial.print("Connecting to Wifi SSID ");
   Serial.print(WIFI_SSID);
   WiFi.setHostname(HOSTNAME);
+  WiFi.mode(WIFI_STA);  
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   pinMode(LED_BUILTIN, OUTPUT);
   //turn LED on

@@ -128,6 +128,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
             bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameWOSlash.c_str(), "document/csv", bot.messages[i].chat_id, myFile);
             debug(sent, "csv file", logFileNames.at(j).c_str());
           }
+          myFile.close();
         }
       }else if(bot.messages[i].text == "graph"){
         bot.sendMessage(bot.messages[i].chat_id, String("generating graph, please wait"));
@@ -163,13 +164,13 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
           debug(sent, "graph file", logFileNames.at(j));
           bot.sendMessage(bot.messages[i].chat_id, String(String(endTimeTime-startTime) + String("ms")));
+          file.close();
         }
       }else if(bot.messages[i].text == "errors"){
-        for(int j=0; j<logFileNames.size(); j++){
           File file = SPIFFS.open(ERROR_LOG_FILE);
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", ERROR_LOG_FILE, "document/csv", bot.messages[i].chat_id, file);
+          file.close();
           debug(sent, "error log", "this device");
-        }
       }
       else{
         String message = bot.messages[i].text;
