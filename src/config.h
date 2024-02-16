@@ -13,7 +13,7 @@
 #define WIFI_CONNECTION_WAIT 5*60
 
 #define LOG_FILE_LIMIT_BYTES 250 * 1000
-#define ERROR_LOG_FILE_LIMIT 25 * 1000
+#define ERROR_LOG_FILE_LIMIT 250 * 1000
 
 #ifdef MAJA_conf
     #define HOSTNAME "Plantbase One"
