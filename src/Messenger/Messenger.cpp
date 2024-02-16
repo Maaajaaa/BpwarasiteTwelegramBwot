@@ -213,9 +213,6 @@ bool Messenger::ping(){
 }
 
 String Messenger::chartSVGGraph(int width, int height, int padding, std::string filename, long timeframe, std::string title){
-  if(!SPIFFS.begin()){
-      return String("SPIFFS formating and mount Failed");
-  }
   std::ifstream file(filename);
   if(!file.is_open())
     return String("File not found");
