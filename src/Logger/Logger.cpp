@@ -105,7 +105,7 @@ int Logger::writeFile(const char *filepath, const char *data, const char *mode)
     //if(!SPIFFS.exists(filepath)) return ENOENT;
     File file = SPIFFS.open(filepath, mode);
     //check if we need to start a new file
-    if(filepath == ERROR_LOG_FILE && file.size() > ERROR_LOG_FILE_LIMIT ||
+    if(filepath == ERROR_LOG_FILE && file.available() &&  file.size() > ERROR_LOG_FILE_LIMIT ||
     filepath != ERROR_LOG_FILE && file.size() > LOG_FILE_LIMIT_BYTES){
         //close and move the file
         file.close();
