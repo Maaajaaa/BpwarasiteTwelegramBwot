@@ -32,6 +32,9 @@ bool Logger::begin(){
             printFileSizeAndName(logFileNames.at(i));
         }
     }
+    if(!SPIFFS.exists("/tmp.html")){
+        writeFile("/tmp.html", "hiii");
+    }
     if(!SPIFFS.exists(ERROR_LOG_FILE)){
         //create empty log file
         writeFile(ERROR_LOG_FILE, "ESP32 log file\n");

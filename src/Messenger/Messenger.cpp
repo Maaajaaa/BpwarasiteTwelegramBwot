@@ -519,7 +519,7 @@ void Messenger::generateNewTmpHtml(std::string logFileName, std::string plantNam
   //dump html String into file
   File file = SPIFFS.open("/tmp.html", FILE_WRITE);
   if(!file){
-    ESP_LOGE(lTag, "FAILED to open tmp.html for writing");
+    ESP_LOGE(lTag, "FAILED to open tmp.html for writing, file exists: %s is dir: %s", SPIFFS.exists("/tmp.html") ? "yes" : "no" , file.isDirectory() ? "yes" : "no");
     return;
   }
   if(file.print(html.c_str())){
