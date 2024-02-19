@@ -19,12 +19,12 @@ bool Logger::begin(){
     esp_log_level_set("b-Messenger", ESP_LOG_INFO);     // enable debug logs from b-Messenger
     esp_log_level_set("b-Logger", ESP_LOG_DEBUG);     // enable debug logs from b-Messenger
 
-    if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
-        Serial.println("SPIFFS formating and mount Failed");
+    if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
+        Serial.println("LittleFS Mount Failed");
         return false;
     }
     for(int i = 0; i<logFileNames.size(); i++){
-        if(!SPIFFS.exists(logFileNames.at(i).c_str())){
+        if(!LittleFS.exists(logFileNames.at(i).c_str())){
             
             writeFile(logFileNames.at(i).c_str(), headerString().c_str());
             printFileSizeAndName(logFileNames.at(i));
@@ -32,10 +32,10 @@ bool Logger::begin(){
             printFileSizeAndName(logFileNames.at(i));
         }
     }
-    if(!SPIFFS.exists("/tmp.html")){
+    if(!LittleFS.exists("/tmp.html")){
         writeFile("/tmp.html", "hiii");
     }
-    if(!SPIFFS.exists(ERROR_LOG_FILE)){
+    if(!LittleFS.exists(ERROR_LOG_FILE)){
         //create empty log file
         writeFile(ERROR_LOG_FILE, "ESP32 log file\n");
         printFileSizeAndName(ERROR_LOG_FILE);
@@ -44,7 +44,7 @@ bool Logger::begin(){
 }
 
 void Logger::printFileSizeAndName(std::string filenamepath){
-    File file = SPIFFS.open(filenamepath.c_str(), FILE_READ);
+    File file = LittleFS.open(filenamepath.c_str(), FILE_READ);
     Serial.print(filenamepath.c_str());
     Serial.print(" exists, size: ");
     Serial.println(file.size());
@@ -104,24 +104,24 @@ int Logger::logErrorToFile(char *logtext)
 }
 int Logger::writeFile(const char *filepath, const char *data, const char *mode)
 {
-    if( SPIFFS.totalBytes() - SPIFFS.usedBytes() <= sizeof(data)+2) return ENOSPC;
+    if( LittleFS.totalBytes() - LittleFS.usedBytes() <= sizeof(data)+2) return ENOSPC;
     //if(!SPIFFS.exists(filepath)) return ENOENT;
-    File file = SPIFFS.open(filepath, mode);
+    File file = LittleFS.open(filepath, mode);
     //check if we need to start a new file
     if(filepath == ERROR_LOG_FILE && file.available() &&  file.size() > ERROR_LOG_FILE_LIMIT ||
     filepath != ERROR_LOG_FILE && file.size() > LOG_FILE_LIMIT_BYTES){
         //close and move the file
         file.close();
         String newFilePath = String(PATH_2) + String(filepath);
-        if(SPIFFS.exists(newFilePath)){
-            SPIFFS.remove(newFilePath.c_str());
+        if(LittleFS.exists(newFilePath)){
+            LittleFS.remove(newFilePath.c_str());
         }
-        bool success = SPIFFS.rename(filepath, newFilePath.c_str());
+        bool success = LittleFS.rename(filepath, newFilePath.c_str());
         //create header if it's a data log file
         if(filepath != ERROR_LOG_FILE){
             writeFile(filepath, headerString().c_str());
         }
-        file = SPIFFS.open(filepath, mode);
+        file = LittleFS.open(filepath, mode);
 
         //do this after opening the file so if there's no possibility for an infite loop if we (failed to) move the log file
         if(success){

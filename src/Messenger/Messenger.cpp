@@ -121,7 +121,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
     if(bot.messages[i].chat_id == CHAT_ID_USER || bot.messages[i].chat_id == CHAT_ID_MAJA){
       if(bot.messages[i].text == "log"){
         for(int j=0; j<logFileNames.size(); j++){
-          File myFile = SPIFFS.open(logFileNames.at(j).c_str());
+          File myFile = LittleFS.open(logFileNames.at(j).c_str());
           if(myFile){
             ESP_LOGD(lTag, "Sending request for: %s", logFileNames.at(j).c_str());
             std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1);
@@ -130,7 +130,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           }
           myFile.close();
           //send archived file too
-          myFile = SPIFFS.open(String(PATH_2) + logFileNames.at(j).c_str());
+          myFile = LittleFS.open(String(PATH_2) + logFileNames.at(j).c_str());
           if(myFile){
             ESP_LOGD(lTag, "Sending request for old: %s", logFileNames.at(j).c_str());
             std::string fileNameWOSlash = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + "old.csv";
@@ -150,7 +150,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           ESP_LOGD(lTag, "generating %s graph took %ims", localPlantNames.at(j), endTimeTime - startTime);
 
           std::string fileNameHTML = logFileNames.at(j).substr(1,logFileNames.at(j).size()- 1) + std::string(".html");
-          File file = SPIFFS.open("/tmp.html");
+          File file = LittleFS.open("/tmp.html");
           bot.sendChatAction(bot.messages[i].chat_id, "UPLOAD_DOCUMENT");
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", fileNameHTML.c_str(), "document/html", bot.messages[i].chat_id, file);
           debug(sent, "graph file", logFileNames.at(j));
@@ -158,10 +158,10 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
           file.close();
         }
       }else if(bot.messages[i].text == "errors"){
-          File file = SPIFFS.open(ERROR_LOG_FILE);
+          File file = LittleFS.open(ERROR_LOG_FILE);
           bool sent = bot.sendMultipartFormDataToTelegram("sendDocument", "document", ERROR_LOG_FILE, "document/csv", bot.messages[i].chat_id, file);
           file.close();
-          file = SPIFFS.open(String(PATH_2) + String(ERROR_LOG_FILE));
+          file = LittleFS.open(String(PATH_2) + String(ERROR_LOG_FILE));
           //send archived file too
           if(file){
             bot.sendMultipartFormDataToTelegram("sendDocument", "document", String(ERROR_LOG_FILE) + "_old", "document/csv", bot.messages[i].chat_id, file);
@@ -176,7 +176,7 @@ void Messenger::handleNewMessages(int numNewMessages, std::vector<BParasite_Data
         message += " dBm\nFree RAM/Storage: ";
         message += ESP.getFreeHeap();
         message += " bytes / ";
-        int tBytes = SPIFFS.totalBytes(); int uBytes = SPIFFS.usedBytes();
+        int tBytes = LittleFS.totalBytes(); int uBytes = LittleFS.usedBytes();
         message += (tBytes - uBytes);
         message += " bytes \n";
         for(int j = 0; j < NUMBER_OF_PLANTS; j++){
@@ -513,13 +513,13 @@ void Messenger::generateNewTmpHtml(std::string logFileName, std::string plantNam
   String html = String(" <!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>");
   html += chartSVGFirstBlock(840, 300, 60);
   ESP_LOGD(lTag, "first SVG Block generated");
-  html += chartSVGGraph(840, 300, 60, std::string("/spiffs") + logFileName.c_str(), 3 * 24 * 60 * 60, plantName);
+  html += chartSVGGraph(840, 300, 60, std::string("/LittleFS") + logFileName.c_str(), 3 * 24 * 60 * 60, plantName);
   html += String("</body></html>");
   ESP_LOGD(lTag, "writing html to tmp.html file");
   //dump html String into file
-  File file = SPIFFS.open("/tmp.html", FILE_WRITE);
+  File file = LittleFS.open("/tmp.html", FILE_WRITE);
   if(!file){
-    ESP_LOGE(lTag, "FAILED to open tmp.html for writing, file exists: %s is dir: %s", SPIFFS.exists("/tmp.html") ? "yes" : "no" , file.isDirectory() ? "yes" : "no");
+    ESP_LOGE(lTag, "FAILED to open tmp.html for writing, file exists: %s is dir: %s", LittleFS.exists("/tmp.html") ? "yes" : "no" , file.isDirectory() ? "yes" : "no");
     return;
   }
   if(file.print(html.c_str())){

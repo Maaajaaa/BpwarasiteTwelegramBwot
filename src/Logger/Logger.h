@@ -1,14 +1,16 @@
 #include <FS.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <time.h>
 
 #include "BParasite.h"
 #include "config.h"
 
-/* You only need to format SPIFFS the first time you run a
-   test or else use the SPIFFS plugin to create a partition
-   https://github.com/me-no-dev/arduino-esp32fs-plugin */
-#define FORMAT_SPIFFS_IF_FAILED true
+/* You only need to format LittleFS the first time you run a
+   test or else use the LITTLEFS plugin to create a partition
+   https://github.com/lorol/arduino-esp32littlefs-plugin
+   */
+
+#define FORMAT_LITTLEFS_IF_FAILED true
 
 #define LOG_TEMPERATURE
 #define LOG_HUMIDITY

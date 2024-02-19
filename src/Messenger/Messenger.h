@@ -5,7 +5,7 @@
 #include <UniversalTelegramBot.h>
 #include <BParasite.h>
 #include <config.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <fstream>
 
 class Messenger{
