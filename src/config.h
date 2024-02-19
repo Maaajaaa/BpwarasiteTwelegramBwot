@@ -15,6 +15,7 @@
 #define LOG_FILE_LIMIT_BYTES 250 * 1000
 #define ERROR_LOG_FILE_LIMIT 250 * 1000
 
+#define CHAT_ID_BOT_BOOTS "***REMOVED****"
 #ifdef MAJA_conf
     #define HOSTNAME "Plantbase One"
     #define WIFI_SSID "***REMOVED***"

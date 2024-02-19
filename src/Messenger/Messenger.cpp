@@ -24,6 +24,7 @@ void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     message = String(message + " is online \xF0\x9F\x8C\xB1 _quiet woof_");
     //markdownv2 requires escape of . characters, so v1 is used for simplicity
     bool sent = bot.sendMessage(CHAT_ID, message, "Markdown");
+    bool sent = bot.sendMessage(CHAT_ID_BOT_BOOTS, message, "Markdown");
     debug(sent, "online message", "this device");
     String data="test\nHello world\n";
     sent = bot.sendMultipartFormDataToTelegramByString("sendDocument", "document", "test.txt", "document/txt", CHAT_ID, data);
@@ -31,6 +32,7 @@ void Messenger::sendOnlineMessage(std::vector<BParasite_Data_S> parasiteData){
     Serial.print("test did");
     Serial.println(sent);
 }
+
 
 //returns 1 if message was sent successfully
 bool Messenger::sendOfflineEntwarnung(BParasite_Data_S parasiteData){
