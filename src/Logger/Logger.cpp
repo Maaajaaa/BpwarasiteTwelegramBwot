@@ -18,6 +18,7 @@ bool Logger::begin(){
     esp_log_level_set("majaStuff", ESP_LOG_DEBUG);     // enable debug logs from majaStuff
     esp_log_level_set("b-Messenger", ESP_LOG_INFO);     // enable debug logs from b-Messenger
     esp_log_level_set("b-Logger", ESP_LOG_DEBUG);     // enable debug logs from b-Messenger
+    esp_log_level_set("maaajaaaClient", ESP_LOG_INFO);     // enable debug logs from MaaajaaaClient
 
     if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
         Serial.println("LittleFS Mount Failed");

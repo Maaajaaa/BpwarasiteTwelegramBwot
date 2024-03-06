@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <vector>
 #include <string>
+#include <BParasite.h>
 
 #define dbServer "maaajaaa.de"
 const char howmysslkey[] = R"=EOF=(
@@ -78,9 +79,11 @@ class MaaajaaaClient{
 
         int connectToServer();
 
-        int sendRequestGetRespCode(String reqUrl);
+        int sendRequestGetRespCode(String reqUrl, String data);
 
         int createSensor(String MAC, String plantName);
+
+        int logReading(BParasite_Data_S data);
 
     private:
         WiFiClientSecure secured_client;
