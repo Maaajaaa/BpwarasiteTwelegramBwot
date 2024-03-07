@@ -3,7 +3,7 @@
 static const char *lTag = "maaajaaaClient";
 
 
-MaaajaaaClient::MaaajaaaClient(std::vector<std::string> localPlantNames)
+MaaajaaaClient::MaaajaaaClient()
 {
     secured_client.setCACert(howmysslkey);
 }

@@ -75,7 +75,7 @@ nLRbwHOoq7hHwg==
 
 class MaaajaaaClient{
     public: 
-        MaaajaaaClient(std::vector<std::string> localPlantNames);
+        MaaajaaaClient();
 
         int connectToServer();
 

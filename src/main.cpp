@@ -48,7 +48,7 @@ Messenger messenger(plantNames);
 Logger logger(knownBLEAddresses);
 //static const char* TAG = "main";
 
-MaaajaaaClient maaajaaaClient(plantNames);
+MaaajaaaClient maaajaaaClient();
 
 void setup() {
     Serial.begin(115200);
