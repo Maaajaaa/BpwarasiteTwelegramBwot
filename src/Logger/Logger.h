@@ -4,7 +4,7 @@
 
 #include "BParasite.h"
 #include "config.h"
-
+#include <fstream>
 /* You only need to format LittleFS the first time you run a
    test or else use the LITTLEFS plugin to create a partition
    https://github.com/lorol/arduino-esp32littlefs-plugin
@@ -26,10 +26,12 @@ class Logger{
     public:
         Logger(std::vector<std::string>);
         bool begin();
-        bool logData(int sensor_id, BParasite_Data_S data, time_t time);
+        bool logData(int sensor_id, BParasite_Data_S data, time_t time , bool logged);
         std::vector<std::string> getLogFileNames();
         static int logError(const char *logtext, va_list args);
         static int logErrorToFile(char *logtext);
+        std::vector<long> getCellsOfLine(std::string line, int numberOfColumns);
+
     private:
         static int writeFile(const char * path, const char * message, const char * mode= FILE_WRITE);
         static int appendFile(const char * path, const char * message);
@@ -38,4 +40,6 @@ class Logger{
         bool successfulStart;
         std::vector<std::string> logFileNames;
         static String headerString();
+        int checkForUnsyncedData(bool syncWithServer);
+        long getCellOfLine(std::string line, int column);
 };

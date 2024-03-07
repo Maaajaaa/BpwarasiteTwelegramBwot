@@ -52,7 +52,7 @@ void Logger::printFileSizeAndName(std::string filenamepath){
     file.close();
 }
 
-bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
+bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time, bool logged){
     String timeString = String(time);
     timeString += ";";
     timeString += data.soil_moisture;
@@ -67,7 +67,11 @@ bool Logger::logData(int sensor_id, BParasite_Data_S data, time_t time){
     #ifdef LOG_SIGNAL
     timeString += ";";
     timeString += data.rssi;
-    #endif    
+    #endif 
+    #ifdef LOG_SYNC
+    timeString += ";";
+    timeString += String(logged);
+    #endif   
     timeString += "\n";
     appendFile(logFileNames.at(sensor_id).c_str(),timeString.c_str());
     return 1;
@@ -159,6 +163,154 @@ String Logger::headerString(){
     #ifdef LOG_SIGNAL
     headerString += ";signal strenth in dBm";
     #endif
+    #ifdef LOG_SYNC
+    headerString += ";synced to server";
+    #endif
     headerString += "\n";
     return headerString;
+}
+
+int Logger::checkForUnsyncedData(bool syncWithServer = false){
+    #ifndef LOG_SNYC
+        return -1;
+    #endif 
+    int numberOfUnsynchedLines = 0;
+    int faultyLines = 0;
+    for(int i = 0; i<logFileNames.size(); i++){
+
+        if(LittleFS.exists(logFileNames.at(i).c_str())){
+            //file exists, parse for snychronisation
+            ESP_LOGI(lTag, "checking file %s for snycronization",  logFileNames.at(i));
+            //start with the latest, on the bottom of the file
+            std::ifstream file(logFileNames.at(i));
+            if(!file.is_open())
+                ESP_LOGE(lTag, "file %s could not be opened", logFileNames.at(i));
+
+            //get length of first line to know where to stop when reading backwards
+            std::string line = "";
+            std::getline(file, line);
+            int length_first_line = line.length() + 1;
+            
+            //as per https://stackoverflow.com/a/11876406
+
+            //read backwards
+            int lineNumber = 0;
+            file.seekg(0,std::ios_base::end);      //Start at end of file
+            char ch = ' ';                        //Init ch not equal to '\n'
+            bool firstLineReached = false;
+            while(!firstLineReached){
+                while(ch != '\n'){
+                    file.seekg(-2,std::ios_base::cur); //Two steps back, this means we will NOT check the last character
+                    if((int)file.tellg() <= length_first_line){        //if we get to the first line, end it
+                        firstLineReached = true;
+                        break;
+                    }
+                    file.get(ch);                      //Check the next character
+                }
+                std::getline(file,line);
+                int numberOfValues = 2; //time and moisture always get logged
+                
+                #ifdef LOG_TEMPERATURE
+                    numberOfValues++;
+                #endif
+                #ifdef LOG_HUMIDITY
+                    numberOfValues++;
+                #endif
+                #ifdef LOG_SIGNAL
+                    numberOfValues++;
+                #endif
+                #ifndef LOG_SNYC
+                    numberOfValues++;
+                #endif 
+                
+                long time = 0;
+                //only try to process the line if it cotains ;
+                if(std::count(line.begin(), line.end(), ';') >= numberOfValues){
+                    //PROCESS LINE INTO VARIABLES 
+                    time = getCellOfLine(line, 0);
+                }
+                //sanity check of time, if it's completely off we'll not use this dataset for plotting and keep going
+                // if time is after 01.01.2023 and there's at least 3 ; in this line of the file
+                if(time  > 1672613192){
+                    if(syncWithServer){
+                        //time, moisture, temperature, humidity, signal, sync
+                        std::vector<long> values = getCellsOfLine(line, 6);
+                        //create client to send data
+                    }else{
+                        int sync = getCellOfLine(line, 5);
+                        if(sync == 1){
+                            numberOfUnsynchedLines++;
+                        }
+                    }
+                    
+                }
+
+                //NEXT LINE
+                //else the -1 won't wort as length() returns unsigned int
+                int len = line.length();
+                file.seekg(-len-4,std::ios_base::cur); //Two steps back, this means we will NOT check the last character
+                if((int)file.tellg() <= length_first_line){        //If we get to the first line, stop
+                    break;
+                }
+                file.get(ch);                      //Check the next character
+
+                lineNumber++;
+        }
+        }else{
+            ESP_LOGD(lTag, "expected file not found during sync check: %s", logFileNames.at(i));
+        }
+    }
+    return numberOfUnsynchedLines;
+}
+
+long Logger::getCellOfLine(std::string line, int column){
+    int beginOfCell = 0;
+    int endOfCell = 0;
+    if(column != 0){
+    //determine begin of cell at column - 1st semicolon
+    for(int i=0; i<column; i++){
+        beginOfCell = line.find(";", beginOfCell) + 1;
+    }
+    }
+    endOfCell = line.find(";", beginOfCell);
+
+    if(endOfCell != -1){
+    return std::stol(line.substr(beginOfCell, (endOfCell-beginOfCell)));
+    }else{
+    return std::stol(line.substr(beginOfCell, (line.length()-beginOfCell)));
+    }
+}
+
+std::vector<long> Logger::getCellsOfLine(std::string line, int numberOfColumns){
+    std::vector<long> cells(numberOfColumns);
+    int semicolonIndeces[numberOfColumns];
+    semicolonIndeces[0] = 0;
+    for(int i=1; i<=numberOfColumns; i++){
+        semicolonIndeces[i] = line.find(";", semicolonIndeces[i-1]+1); //+1 to skip the previously found semicolon
+        int beginOfCell = semicolonIndeces[i-1] + 1; //+1 to skip the semicolon itself
+        int endOfCell = semicolonIndeces[i];
+
+        //assign 0th cell if we're at the first cell and reset the +1
+        if(i==1){
+            beginOfCell = 0;
+            cells[0] = std::stol(line.substr(0, (endOfCell)));
+            Serial.println(cells[0]);
+        }
+
+        if(i==numberOfColumns && endOfCell == -1){
+            cells[i] = std::stol(line.substr(beginOfCell, (line.length()-beginOfCell)));
+        }else{
+            cells[i] = std::stol(line.substr(beginOfCell, (endOfCell-beginOfCell)));
+        }
+        Serial.print(i);
+        Serial.print(":");
+        Serial.print(cells[i]);
+
+        Serial.print("[");
+        Serial.print(beginOfCell);
+        Serial.print(":");
+        Serial.print(endOfCell);
+        Serial.println("]");
+    } 
+    return cells;  
 }
