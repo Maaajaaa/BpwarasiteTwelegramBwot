@@ -16,6 +16,7 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include <Messenger/Messenger.h>
 #include <Logger/Logger.h>
+#include <MaaajaaaClient/MaaajaaaClient.h>
 #include <sensorsConf.h>
 
 const int scanTime = 5; // BLE scan time in seconds 
@@ -47,6 +48,8 @@ Messenger messenger(plantNames);
 Logger logger(knownBLEAddresses);
 //static const char* TAG = "main";
 
+MaaajaaaClient maaajaaaClient(plantNames);
+
 void setup() {
     Serial.begin(115200);
     //give the console some time, else we'll never see the first few seconds of messages  
@@ -68,6 +71,7 @@ void setup() {
     connectToWifiAndGetDST();
     //only now it really makes sense to start reading from our sensor(s)
     // Initialization
+    //send test to MaaajaaaServer
     parasite.begin();
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
@@ -241,7 +245,12 @@ void parasiteReadingTask(void *pvParameters) {
                 || parasiteData[i].soil_moisture != parasite.data[i].soil_moisture 
                 || parasiteData[i].humidity != parasite.data[i].humidity){
                   parasiteData[i]=parasite.data[i];
-                  logger.logData(i, parasiteData[i], time(nullptr)); 
+                  bool logged = false;
+                  time_t logTime = time(nullptr);
+                  if(maaajaaaClient.logReading(parasiteData[i], knownBLEAddresses[i].c_str(), String(logTime)) == 201){
+                    logged = true;
+                  }
+                  logger.logData(i, parasiteData[i], logTime, logged); 
             }
             xSemaphoreGive(mutex);
             dataSaved = true;

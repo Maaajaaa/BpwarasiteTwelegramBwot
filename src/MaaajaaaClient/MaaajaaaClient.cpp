@@ -93,15 +93,16 @@ int MaaajaaaClient::createSensor(String MAC, String plantName){
     return sendRequestGetRespCode(url, data);
 }
 
-int MaaajaaaClient::logReading(BParasite_Data_S data, String MAC, unsigned long readingTime){
+int MaaajaaaClient::logReading(BParasite_Data_S data, String MAC, String readingTime){
     String url = dbServer;
     url += "/logData.php";
     String content = "MAC=" + MAC;
-    content += "&soilMoisture=" + String(data.soil_moisture/100);
-    content += "&temperature=" + String(data.temperature/100);
-    content += "&humidity=" + String(data.humidity/100);
-    content += "&batteryVoltage=" + String(data.batt_voltage/1000);
-    content += "&readingTime=" + String();
+    content += "&soilMoisture=" + String((float) data.soil_moisture/100);
+    content += "&temperature=" + String((float) data.temperature/100);
+    content += "&humidity=" + String((float) data.humidity/100);
+    content += "&batteryVoltage=" + String((float) data.batt_voltage/1000);
+    content += "&readingTime=" + readingTime;
     content += "signalStrength=" + String(data.rssi);
+    ESP_LOGI(lTag, "sending log %s", content);
     return sendRequestGetRespCode(url, content);
 }

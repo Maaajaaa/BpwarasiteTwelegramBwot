@@ -83,7 +83,8 @@ class MaaajaaaClient{
 
         int createSensor(String MAC, String plantName);
 
-        int logReading(BParasite_Data_S data);
+        int logReading(BParasite_Data_S data, String MAC, String readingTime);
+
 
     private:
         WiFiClientSecure secured_client;
