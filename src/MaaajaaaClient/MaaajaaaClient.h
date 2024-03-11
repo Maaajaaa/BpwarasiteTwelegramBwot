@@ -1,3 +1,6 @@
+#ifndef MAAAJAAACLIENT_H
+#define MAAAJAAACLIENT_H
+
 #include <WiFiClientSecure.h>
 #include <WiFi.h>
 #include <vector>
@@ -81,6 +84,8 @@ class MaaajaaaClient{
 
         int sendRequestGetRespCode(String reqUrl, String data);
 
+        int connected();
+
         int createSensor(String MAC, String plantName);
 
         int logReading(BParasite_Data_S data, String MAC, String readingTime);
@@ -88,5 +93,6 @@ class MaaajaaaClient{
 
     private:
         WiFiClientSecure secured_client;
-        std::vector<std::string> localPlantNames;
 };
+
+#endif

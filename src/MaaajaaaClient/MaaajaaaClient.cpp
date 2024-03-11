@@ -10,7 +10,7 @@ MaaajaaaClient::MaaajaaaClient()
 
 int MaaajaaaClient::connectToServer(){
     /*return*/
-    Serial.println("connecting to Maaajaaa");
+    ESP_LOGI(lTag, "connecting to DB-server %s" dbServer);
     //secured_client.connect(dbServer, 443);
     if (!secured_client.connect(dbServer, 443)){
         char errorBuff[255];
@@ -28,13 +28,19 @@ int MaaajaaaClient::connectToServer(){
 int MaaajaaaClient::sendRequestGetRespCode(String reqUrl, String data){
     long responseCode = -1;
     /*return*/
-    Serial.println("connecting to Maaajaaa for request");
-    //secured_client.connect(dbServer, 443);
-    if (!secured_client.connect(dbServer, 443))
+    if(!secured_client.connected()){
+        Serial.println("connecting to Maaajaaa for request");
+         if (!secured_client.connect(dbServer, 443)){
+            Serial.println("Connection attempt failed!");
+            return -1;
+         }
+    }
+    if(!secured_client.connected()){
         Serial.println("Connection failed!");
+    }
     else
     {
-        Serial.println("Connected to maaajaaa!");
+        Serial.println("Connected to maaajaaa.de for request");
         secured_client.print("POST https://");
         secured_client.print(reqUrl);
         secured_client.println(" HTTP/1.0");
@@ -83,6 +89,10 @@ int MaaajaaaClient::sendRequestGetRespCode(String reqUrl, String data){
     return responseCode;
 }
 
+int MaaajaaaClient::connected(){
+    return secured_client.connected();
+}
+
 int MaaajaaaClient::createSensor(String MAC, String plantName){
     String url = dbServer;
     url += "/createSensor.php";
@@ -103,6 +113,6 @@ int MaaajaaaClient::logReading(BParasite_Data_S data, String MAC, String reading
     content += "&batteryVoltage=" + String((float) data.batt_voltage/1000);
     content += "&readingTime=" + readingTime;
     content += "signalStrength=" + String(data.rssi);
-    ESP_LOGI(lTag, "sending log %s", content);
+    Serial.printf("sending log %s", content.c_str());
     return sendRequestGetRespCode(url, content);
 }
