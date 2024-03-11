@@ -5,6 +5,7 @@
 #include "BParasite.h"
 #include "config.h"
 #include <fstream>
+#include "MaaajaaaClient/MaaajaaaClient.h"
 /* You only need to format LittleFS the first time you run a
    test or else use the LITTLEFS plugin to create a partition
    https://github.com/lorol/arduino-esp32littlefs-plugin
@@ -15,6 +16,7 @@
 #define LOG_TEMPERATURE
 #define LOG_HUMIDITY
 #define LOG_SIGNAL
+#define LOG_SYNC
 
 #define FILE_WRITTEN_SUCCESSFULLY 200
 #define FILE_EPERM 1 //operation not permitted
@@ -31,6 +33,8 @@ class Logger{
         static int logError(const char *logtext, va_list args);
         static int logErrorToFile(char *logtext);
         std::vector<long> getCellsOfLine(std::string line, int numberOfColumns);
+        int checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool syncWithServer);
+
 
     private:
         static int writeFile(const char * path, const char * message, const char * mode= FILE_WRITE);
@@ -40,6 +44,6 @@ class Logger{
         bool successfulStart;
         std::vector<std::string> logFileNames;
         static String headerString();
-        int checkForUnsyncedData(bool syncWithServer);
         long getCellOfLine(std::string line, int column);
+        BParasite_Data_S parasiteDataFromVector(std::vector<long>);
 };

@@ -17,7 +17,7 @@ bool Logger::begin(){
     esp_log_level_set("dhcpc", ESP_LOG_DEBUG);     // enable WARN logs from DHCP client
     esp_log_level_set("majaStuff", ESP_LOG_DEBUG);     // enable debug logs from majaStuff
     esp_log_level_set("b-Messenger", ESP_LOG_INFO);     // enable debug logs from b-Messenger
-    esp_log_level_set("b-Logger", ESP_LOG_DEBUG);     // enable debug logs from b-Messenger
+    esp_log_level_set("b-Logger", ESP_LOG_INFO);     // enable debug logs from b-Messenger
     esp_log_level_set("maaajaaaClient", ESP_LOG_INFO);     // enable debug logs from MaaajaaaClient
 
     if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
@@ -89,10 +89,6 @@ int Logger::logError(const char *logtext, va_list args)
     int retVal = vasprintf(&string, logtext, args);
     int writeResult = logErrorToFile(string);
     Serial.print(string);
-    Serial.print(" vasprintf returned: ");
-    Serial.println(retVal);
-    Serial.print("log write returned: ");
-    Serial.print(writeResult);
     //still write to stdout
     return vprintf(logtext, args);
 }
@@ -170,27 +166,52 @@ String Logger::headerString(){
     return headerString;
 }
 
-int Logger::checkForUnsyncedData(bool syncWithServer = false){
-    #ifndef LOG_SNYC
+int Logger::checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool syncWithServer = false){
+    #ifndef LOG_SYNC
         return -1;
     #endif 
     int numberOfUnsynchedLines = 0;
     int faultyLines = 0;
-    for(int i = 0; i<logFileNames.size(); i++){
+    Serial.printf("memory free before Maajaaclient: %i\n",ESP.getFreeHeap());
+    MaaajaaaClient maaajaaaClient;
+    Serial.printf("memory free after Maajaaclient: %i\n",ESP.getFreeHeap());
+    std::vector<std::string> filesToCheck = logFileNames;// {std::string("/test.csv")};
+    //filesToCheck[0] = logFileNames[0];
+    Serial.print("a local file look like: ");
+    Serial.println(logFileNames.at(0).c_str());
+    Serial.println("checking file");
+    Serial.println(filesToCheck.at(0).c_str());
+    LittleFS.remove(logFileNames.at(0).c_str());
 
-        if(LittleFS.exists(logFileNames.at(i).c_str())){
+    //time, moisture, temperature, humidity, signal, sync
+    if(!LittleFS.exists(filesToCheck[0].c_str())){
+        Serial.println("writing to fileToCheck");
+        File f = LittleFS.open(filesToCheck[0].c_str(), "w", true);
+        f.print("time;moisture;temp;humi;signal;sync\n");
+        f.print("1672613200;1212;2323;4545;5656;0\n");
+        f.print("1672613400;1212;2323;4545;5656;1\n");
+        f.print("1672613600;1212;2323;4545;5656;1\n");
+        f.print("1672613800;1212;2323;4545;5656;0\n");
+        f.close();
+    }
+    Serial.println("checked littlefs");
+    //std::vector<std::string> filesToCheck = logFileNames;
+    for(int i = 0; i<filesToCheck.size(); i++){
+        ESP_LOGE(lTag, "running main loop round %i", i);
+        if(LittleFS.exists(filesToCheck.at(i).c_str())){
             //file exists, parse for snychronisation
-            ESP_LOGI(lTag, "checking file %s for snycronization",  logFileNames.at(i));
+            ESP_LOGE(lTag, "checking file %i: %s for snycronization",i,  filesToCheck.at(i).c_str());
             //start with the latest, on the bottom of the file
-            std::ifstream file(logFileNames.at(i));
+            std::fstream file(std::string("/littlefs") + filesToCheck.at(i), std::ios::out|std::ios::in);
+            //std::ofstream file2(logFileNames.at(i));
+            //std::fstream file3(logFileNames[i]);
             if(!file.is_open())
-                ESP_LOGE(lTag, "file %s could not be opened", logFileNames.at(i));
+                ESP_LOGE(lTag, "file %s could not be opened for sync (check) by std::fstream", filesToCheck.at(i).c_str());
 
             //get length of first line to know where to stop when reading backwards
             std::string line = "";
             std::getline(file, line);
             int length_first_line = line.length() + 1;
-            
             //as per https://stackoverflow.com/a/11876406
 
             //read backwards
@@ -208,6 +229,9 @@ int Logger::checkForUnsyncedData(bool syncWithServer = false){
                     file.get(ch);                      //Check the next character
                 }
                 std::getline(file,line);
+                Serial.print(lineNumber);
+                Serial.print(" ");
+                Serial.println(line.c_str());
                 int numberOfValues = 2; //time and moisture always get logged
                 
                 #ifdef LOG_TEMPERATURE
@@ -219,15 +243,17 @@ int Logger::checkForUnsyncedData(bool syncWithServer = false){
                 #ifdef LOG_SIGNAL
                     numberOfValues++;
                 #endif
-                #ifndef LOG_SNYC
+                #ifdef LOG_SYNC
                     numberOfValues++;
                 #endif 
+                Serial.println(numberOfValues);
                 
                 long time = 0;
                 //only try to process the line if it cotains ;
-                if(std::count(line.begin(), line.end(), ';') >= numberOfValues){
+                if(std::count(line.begin(), line.end(), ';') >= numberOfValues-1){
                     //PROCESS LINE INTO VARIABLES 
                     time = getCellOfLine(line, 0);
+                    Serial.println(time);
                 }
                 //sanity check of time, if it's completely off we'll not use this dataset for plotting and keep going
                 // if time is after 01.01.2023 and there's at least 3 ; in this line of the file
@@ -235,28 +261,63 @@ int Logger::checkForUnsyncedData(bool syncWithServer = false){
                     if(syncWithServer){
                         //time, moisture, temperature, humidity, signal, sync
                         std::vector<long> values = getCellsOfLine(line, 6);
-                        //create client to send data
-                    }else{
-                        int sync = getCellOfLine(line, 5);
-                        if(sync == 1){
-                            numberOfUnsynchedLines++;
+                        //sync
+                        Serial.print("val size");
+                        Serial.println(values.size());
+                        if(values[numberOfValues-1] != 1){
+                            Serial.println("connecting to server");
+                            if(!maaajaaaClient.connected()){ Serial.println("line 268");
+                                maaajaaaClient.connectToServer(); Serial.println("line 269");
+                            }
+                            Serial.println("line 271");
+                            if(maaajaaaClient.connected()){
+                                Serial.println("line 273");
+                                int resp = maaajaaaClient.logReading(parasiteDataFromVector(values), knownBLEAdresses[i].c_str(), String(time));
+                                Serial.println("line 275");
+                                if(resp == 201 || resp%100 == 2){
+                                    ESP_LOGI(lTag, "sync of value succeeded");
+                                    //replace the 0 with 1
+                                    Serial.println("seeking ln 279");
+                                    file.seekp(line.length()-1,std::ios_base::cur);
+                                    Serial.println("writing");
+                                    file.write("1",1);
+                                    Serial.println("written");
+                                }else{
+                                    numberOfUnsynchedLines++;
+                                }
+                            }else{
+                                Serial.println("line 288");
+                                ESP_LOGD(lTag, "connecting to DB server for sync failed");
+                            }
                         }
+                    }else{
+                        numberOfUnsynchedLines++;
                     }
                     
                 }
-
+                Serial.println("reading next line");
                 //NEXT LINE
                 //else the -1 won't wort as length() returns unsigned int
                 int len = line.length();
                 file.seekg(-len-4,std::ios_base::cur); //Two steps back, this means we will NOT check the last character
+                Serial.println("next seekg");
                 if((int)file.tellg() <= length_first_line){        //If we get to the first line, stop
                     break;
                 }
                 file.get(ch);                      //Check the next character
-
+                Serial.println("got next char");
                 lineNumber++;
         }
-        }else{
+        file.close();
+        File filereopen = LittleFS.open(filesToCheck.at(0).c_str(), "r");
+        Serial.println("changed file: \n");
+        while(filereopen.available()){
+            Serial.println(filereopen.readStringUntil('\n'));
+        }
+
+        delay(60000);
+        }
+        else{
             ESP_LOGD(lTag, "expected file not found during sync check: %s", logFileNames.at(i));
         }
     }
@@ -313,4 +374,14 @@ std::vector<long> Logger::getCellsOfLine(std::string line, int numberOfColumns){
         Serial.println("]");
     } 
     return cells;  
+}
+
+BParasite_Data_S Logger::parasiteDataFromVector(std::vector<long> vector){
+    //time, moisture, temperature, humidity, signal, sync
+    BParasite_Data_S data;
+    data.soil_moisture = vector.at(1);
+    data.temperature = vector.at(2);
+    data.humidity = vector.at(3);
+    data.rssi = vector.at(4);
+    return data;
 }
