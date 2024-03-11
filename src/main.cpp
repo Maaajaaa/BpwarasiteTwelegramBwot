@@ -56,6 +56,16 @@ void setup() {
     delay(2000);
     //initialize the logger first so we can first and foremost log (even if the time might be wrong for now)
     logger.begin();
+
+    //test logger function
+    std::vector<long> cells = logger.getCellsOfLine(std::string("1;23;456;7890"),4);
+    for(int i=0; i<=4; i++){
+      Serial.print(i);
+      Serial.print(" ");
+      Serial.println(cells[i]);
+    }
+    //logger.getCellsOfLine(std::string("1;23;456;7890;"),4);
+
     //set ESP logging to log to file (and still print as well)
     esp_log_set_vprintf(logger.logError);
 
@@ -73,6 +83,10 @@ void setup() {
     // Initialization
     //send test to MaaajaaaServer
     parasite.begin();
+
+    //test new function
+    logger.checkForUnsyncedData(knownBLEAddresses, true);
+
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     //create scanning task
