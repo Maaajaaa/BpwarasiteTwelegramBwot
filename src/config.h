@@ -3,6 +3,9 @@
 #define myTAG "majaStuff"
 #define ERROR_LOG_FILE "/errors.log"
 #define PATH_2 "/old"
+
+#define LED_INVERTED true
+
 #define MAJA_conf 1
 //#define ***REMOVED***_conf 1
 #define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL_ERROR 1

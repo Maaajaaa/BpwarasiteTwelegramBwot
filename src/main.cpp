@@ -273,9 +273,9 @@ void parasiteReadingTask(void *pvParameters) {
 
 void blink(int lowTime, int highTime){
   for(auto i=0; i<1400;){
-    digitalWrite(LED_BUILTIN, LOW);  
+    digitalWrite(LED_BUILTIN, LED_INVERTED);  
     delay(lowTime);                      
-    digitalWrite(LED_BUILTIN, HIGH);   
+    digitalWrite(LED_BUILTIN, !LED_INVERTED);   
     delay(highTime); 
     i+= lowTime + highTime;                     
   }
