@@ -202,7 +202,7 @@ int Logger::checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool
             //file exists, parse for snychronisation
             ESP_LOGE(lTag, "checking file %i: %s for snycronization",i,  filesToCheck.at(i).c_str());
             //start with the latest, on the bottom of the file
-            std::fstream file(std::string("/littlefs") + filesToCheck.at(i), std::ios::out|std::ios::in);
+            std::fstream file(std::string("/littlefs") + filesToCheck.at(i), std::ios::out|std::ios::in|std::ios::trunc );
             //std::ofstream file2(logFileNames.at(i));
             //std::fstream file3(logFileNames[i]);
             if(!file.is_open())
@@ -260,7 +260,8 @@ int Logger::checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool
                 if(time  > 1672613192){
                     if(syncWithServer){
                         //time, moisture, temperature, humidity, signal, sync
-                        std::vector<long> values = getCellsOfLine(line, 6);
+                        std::vector<long> values(6);
+                        values = getCellsOfLine(line, 6);
                         //sync
                         Serial.print("val size");
                         Serial.println(values.size());
@@ -272,16 +273,21 @@ int Logger::checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool
                             Serial.println("line 271");
                             if(maaajaaaClient.connected()){
                                 Serial.println("line 273");
-                                int resp = maaajaaaClient.logReading(parasiteDataFromVector(values), knownBLEAdresses[i].c_str(), String(time));
+                                int resp = 201;//maaajaaaClient.logReading(parasiteDataFromVector(values), knownBLEAdresses[i].c_str(), String(time));
                                 Serial.println("line 275");
                                 if(resp == 201 || resp%100 == 2){
                                     ESP_LOGI(lTag, "sync of value succeeded");
                                     //replace the 0 with 1
                                     Serial.println("seeking ln 279");
+                                    Serial.println(file.tellg());
+                                    Serial.println(file.tellp());
                                     file.seekp(line.length()-1,std::ios_base::cur);
+                                    Serial.println("seeked");
+                                    Serial.println(file.tellg());
+                                    Serial.println(file.tellp());
                                     Serial.println("writing");
-                                    file.write("1",1);
-                                    Serial.println("written");
+                                    file.put('1');
+                                    //Serial.println("written");
                                 }else{
                                     numberOfUnsynchedLines++;
                                 }
@@ -296,6 +302,7 @@ int Logger::checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool
                     
                 }
                 Serial.println("reading next line");
+                delay(200);
                 //NEXT LINE
                 //else the -1 won't wort as length() returns unsigned int
                 int len = line.length();
@@ -343,27 +350,56 @@ long Logger::getCellOfLine(std::string line, int column){
 }
 
 std::vector<long> Logger::getCellsOfLine(std::string line, int numberOfColumns){
+    //Serial.print("getting line ");
+    Serial.println(line.c_str());
     std::vector<long> cells(numberOfColumns);
     int semicolonIndeces[numberOfColumns];
     semicolonIndeces[0] = 0;
-    for(int i=1; i<=numberOfColumns; i++){
+    //Serial.print("getting indeces: 0");
+    for(int i=1; i<numberOfColumns; i++){
         semicolonIndeces[i] = line.find(";", semicolonIndeces[i-1]+1); //+1 to skip the previously found semicolon
-        int beginOfCell = semicolonIndeces[i-1] + 1; //+1 to skip the semicolon itself
-        int endOfCell = semicolonIndeces[i];
-
+        //Serial.printf(", %i", semicolonIndeces[i]);
+    }
+    //Serial.println("got indeces");
+    for(int i=0; i<numberOfColumns; i++){
+        //Serial.printf("INDEX %i\n", i);
+        cells.at(i) = -1;
+        
+        int beginOfCell, endOfCell;
         //assign 0th cell if we're at the first cell and reset the +1
-        if(i==1){
+        if(i==0){
             beginOfCell = 0;
-            cells[0] = std::stol(line.substr(0, (endOfCell)));
-            Serial.println(cells[0]);
+            endOfCell = semicolonIndeces[1];
+        }else{
+            beginOfCell = semicolonIndeces[i] + 1; //+1 to skip the semicolon itself
+            endOfCell = semicolonIndeces[i+1];
         }
 
-        if(i==numberOfColumns && endOfCell == -1){
-            cells[i] = std::stol(line.substr(beginOfCell, (line.length()-beginOfCell)));
+        
+        std::string substring;
+        if(!(semicolonIndeces[i] == std::string::npos || semicolonIndeces[i-1] == std::string::npos)){
+            try{
+                if(i==numberOfColumns-1 && endOfCell == -1){
+                    substring = line.substr(beginOfCell, (line.length()-beginOfCell));
+                } else{
+                    substring = line.substr(beginOfCell, (endOfCell-beginOfCell));
+                }
+                //Serial.println(substring.c_str());
+                cells[i] = std::stol(substring);
+            }
+            catch(std::out_of_range& excep){
+                ESP_LOGE(lTag, "substring failed, out of range: %s at column %i of %i", line.c_str(), i, numberOfColumns);
+            }catch(std::invalid_argument& excep){
+                ESP_LOGE(lTag, "stol failed invalid argument: %s" , substring.c_str());
+            }
         }else{
-            cells[i] = std::stol(line.substr(beginOfCell, (endOfCell-beginOfCell)));
+            //Serial.printf("index %i not found\n", i);
+            cells[i] = -1;
         }
+        /*
         Serial.print(i);
+        Serial.print(" ; ");
+        Serial.print(substring.c_str());
         Serial.print(":");
         Serial.print(cells[i]);
 
@@ -372,6 +408,7 @@ std::vector<long> Logger::getCellsOfLine(std::string line, int numberOfColumns){
         Serial.print(":");
         Serial.print(endOfCell);
         Serial.println("]");
+        */
     } 
     return cells;  
 }
