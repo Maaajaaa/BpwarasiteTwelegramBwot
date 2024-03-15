@@ -32,7 +32,6 @@ class Logger{
         std::vector<std::string> getLogFileNames();
         static int logError(const char *logtext, va_list args);
         static int logErrorToFile(char *logtext);
-        std::vector<long> getCellsOfLine(std::string line, int numberOfColumns);
         int checkForUnsyncedData(std::vector<std::string> knownBLEAdresses, bool syncWithServer);
 
 
@@ -44,6 +43,5 @@ class Logger{
         bool successfulStart;
         std::vector<std::string> logFileNames;
         static String headerString();
-        long getCellOfLine(std::string line, int column);
         BParasite_Data_S parasiteDataFromVector(std::vector<long>);
 };
