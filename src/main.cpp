@@ -24,7 +24,7 @@ const int scanTime = 5; // BLE scan time in seconds
 
 BParasite parasite(knownBLEAddresses, plantNames);
 static const int plantNumer = knownBLEAddresses.size();
-BParasite_Data_S parasiteData[10];
+std::vector<BParasite_Data_S> parasiteData(NUMBER_OF_PLANTS);
 
 SemaphoreHandle_t mutex;
 
@@ -59,7 +59,7 @@ void setup() {
 
     //test logger function
     std::vector<long> cells = logger.getCellsOfLine(std::string("1;23;456;7890"),4);
-    for(int i=0; i<=4; i++){
+    for(int i=0; i<4; i++){
       Serial.print(i);
       Serial.print(" ");
       Serial.println(cells[i]);
@@ -90,7 +90,7 @@ void setup() {
     //initialize mutex semaphore
     mutex = xSemaphoreCreateMutex();
     //create scanning task
-    xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      10000,  NULL,        1,   NULL);
+    xTaskCreate(parasiteReadingTask,   "parasiteReadingTask",      5000,  NULL,        1,   NULL);
     messenger.sendOnlineMessage(parasite.data);
 }
 
