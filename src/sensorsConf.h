@@ -13,4 +13,10 @@
     std::vector<std::string> knownBLEAddresses {"cb:1b:5f:bf:07:aa"};
 #endif
 
+#ifdef ***REMOVED***_conf
+    std::vector<std::string> plantNames {"Ficus carica", "Pflanzbolt"};
+    std::vector<std::string> knownBLEAddresses {"F9:B5:9E:C2:6A:0B", "FC:E1:C4:E7:CD:54"};
+#endif
+
+
 int NUMBER_OF_PLANTS = knownBLEAddresses.size();

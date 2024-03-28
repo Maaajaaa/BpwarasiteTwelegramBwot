@@ -4,10 +4,14 @@
 #define ERROR_LOG_FILE "/errors.log"
 #define PATH_2 "/old"
 
+#define AP_NAME "MaaajaaaSensor"
+#define DEFAULT_AP_PW ""
 #define LED_INVERTED true
+
 
 #define MAJA_conf 1
 //#define ***REMOVED***_conf 1
+//#define MI
 #define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL_ERROR 1
 #define CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL 1
 #define CONFIG_ARDUHAL_ESP_LOG 1
@@ -35,9 +39,21 @@
     #define HOSTNAME "Plantbase Two"
     // Wifi network station credentials
     #define WIFI_SSID "***REMOVED***"
-    #define WIFI_PASSWORD "***REMOVED***"
+    #define WIFI_PASSWORD "***REMOVED***!"
     #define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
     #define CHAT_ID "***REMOVED***" // Maja ***REMOVED*** Group at ***REMOVED*** Bot
+    #define CHAT_ID_USER "***REMOVED***" //***REMOVED***
+#endif
+
+#ifdef ***REMOVED***_conf
+    #define HOSTNAME "Plantbase Three"
+    // Wifi network station credentials
+    //#define WIFI_SSID "Redmi"
+    //#define WIFI_PASSWORD "m4444j4444"
+    #define WIFI_SSID "***REMOVED***"
+    #define WIFI_PASSWORD "***REMOVED***"
+    #define BOT_TOKEN "***REMOVED***" //***REMOVED*** Bot
+    #define CHAT_ID "***REMOVED***" // ***REMOVED***
     #define CHAT_ID_USER "***REMOVED***" //***REMOVED***
 #endif
 

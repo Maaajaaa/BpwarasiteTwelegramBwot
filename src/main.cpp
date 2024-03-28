@@ -4,10 +4,10 @@
 #include "esp32-hal-log.h" 
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
-#include "ESPAsyncWebServer.h"
 
 #include <numeric>
 #include <WiFi.h>
+#include <WiFiManager.h>
 
 #include "BParasite.h"
 
@@ -49,6 +49,8 @@ Logger logger(knownBLEAddresses);
 //static const char* TAG = "main";
 
 MaaajaaaClient maaajaaaClient;
+
+WiFiManager wifiManager;
 
 void setup() {
     Serial.begin(115200);
@@ -287,10 +289,10 @@ void connectToWifiAndGetDST(){
   settimeofday((const timeval*)&epoch, 0);
 
   Serial.print("Connecting to Wifi SSID ");
-  Serial.print(WIFI_SSID);
-  WiFi.setHostname(HOSTNAME);
-  WiFi.mode(WIFI_STA);  
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  //Serial.print(WIFI_SSID);
+  
+  wifiManager.autoConnect(AP_NAME, DEFAULT_AP_PW);
+  wifiManager.setHostname(HOSTNAME);
   pinMode(LED_BUILTIN, OUTPUT);
   //turn LED on
   digitalWrite(LED_BUILTIN, LOW); 
